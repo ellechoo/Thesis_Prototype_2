@@ -1,0 +1,28 @@
+/* Intentionally minimal. Only what the prototype needs to work. */
+
+body {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: sans-serif;
+  background: white;
+}
+
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+fieldset {
+  margin-bottom: 12px;
+}
+
+.entry {
+  border-top: 1px solid #ccc;
+  padding: 12px 0;
+}
+
+.error {
+  color: #c0392b;
+}

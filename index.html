@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Two Names</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Two Names</h1>
+    <nav>
+      <a href="#home">Home</a> |
+      <a href="#archive">Archive</a> |
+      <a href="#add">Add your names</a> |
+      <a href="#about">About</a>
+    </nav>
+    <hr>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section id="home" class="page">
+      <h2>How Korean American families came to have two names, and how each person carries both today</h2>
+      <p>
+        This archive collects the stories of immigrants who chose an English name after arriving in the US,
+        and their US-born children, who were usually given both a Korean and an English name.
+        Each person's names are drawn as two lines growing from a shared family name.
+      </p>
+      <svg id="home-route" width="640" height="190"></svg>
+      <p><a href="#archive">Explore the archive</a> or <a href="#add">add your names</a>.</p>
+    </section>
+
+    <!-- ARCHIVE -->
+    <section id="archive" class="page" hidden>
+      <h2>Archive</h2>
+      <p>
+        <label>Generation
+          <select id="f-gen">
+            <option value="">All</option>
+            <option value="immigrant">Immigrant generation</option>
+            <option value="usborn">US-born generation</option>
+          </select>
+        </label>
+        <label>English name given by
+          <select id="f-giver">
+            <option value="">Anyone</option>
+            <option value="parents">Parents</option>
+            <option value="grandparents">Grandparents</option>
+            <option value="self">Self</option>
+            <option value="teacher">Teacher</option>
+            <option value="other">Someone else</option>
+          </select>
+        </label>
+        <label>English name came
+          <select id="f-when">
+            <option value="">Any time</option>
+            <option value="birth">At birth</option>
+            <option value="later">Later</option>
+          </select>
+        </label>
+      </p>
+      <p id="archive-count"></p>
+      <div id="archive-list"></div>
+    </section>
+
+    <!-- PERSON VIEW -->
+    <section id="person" class="page" hidden>
+      <p><a href="#archive">&larr; Back to archive</a></p>
+      <div id="person-detail"></div>
+    </section>
+
+    <!-- ADD YOUR NAMES -->
+    <section id="add" class="page" hidden>
+      <h2>Add your names</h2>
+      <p>Step <span id="step-num">1</span> of 7</p>
+
+      <form id="add-form">
+        <!-- Step 1 -->
+        <fieldset data-step="1">
+          <legend>1. Your names</legend>
+          <p><label>Family name in Korean (e.g. 김) <input id="surnameKo" type="text"></label></p>
+          <p><label>Family name in English (e.g. Kim, Lee, Rhee) * <input id="surnameEn" type="text"></label></p>
+          <p><label>English family name, if different (e.g. married name) <input id="surnameEnAlt" type="text"></label></p>
+          <p><label>Clan origin (본관), if you know it <input id="clan" type="text"></label></p>
+          <p><label>Korean given name in Hangul (e.g. 지연) * <input id="koGiven" type="text"></label></p>
+          <p><label>English first name * <input id="enFirst" type="text"></label></p>
+          <p><label>English middle name <input id="enMiddle" type="text"></label></p>
+          <p><label>Year you were born * <input id="birthYear" type="number" min="1900" max="2026"></label></p>
+          <p>Where were you born?<br>
+            <label><input type="radio" name="generation" value="immigrant" checked> Outside the US, and I moved here</label><br>
+            <label><input type="radio" name="generation" value="usborn"> In the US</label>
+          </p>
+          <p id="step1-error" class="error"></p>
+        </fieldset>
+
+        <!-- Step 2 -->
+        <fieldset data-step="2" hidden>
+          <legend>2. Where each name came from</legend>
+          <h3>Korean name</h3>
+          <p><label>Who gave it?
+            <select id="koGivenBy">
+              <option value="parents">Parents</option>
+              <option value="grandparents">Grandparents</option>
+              <option value="self">I chose it</option>
+              <option value="teacher">A teacher</option>
+              <option value="other">Someone else</option>
+            </select></label></p>
+          <p>When?
+            <label><input type="radio" name="koWhen" value="birth" checked> At birth</label>
+            <label><input type="radio" name="koWhen" value="later"> Later, in year <input id="koYear" type="number" min="1900" max="2026"></label>
+          </p>
+          <p><label>Status
+            <select id="koStatus">
+              <option value="legal">Legal first name</option>
+              <option value="middle">Legal middle name</option>
+              <option value="unofficial" selected>Unofficial (family only, nickname)</option>
+            </select></label></p>
+
+          <h3>English name</h3>
+          <p><label>Who gave it?
+            <select id="enGivenBy">
+              <option value="parents">Parents</option>
+              <option value="grandparents">Grandparents</option>
+              <option value="self">I chose it</option>
+              <option value="teacher">A teacher</option>
+              <option value="other">Someone else</option>
+            </select></label></p>
+          <p>When?
+            <label><input type="radio" name="enWhen" value="birth" checked> At birth</label>
+            <label><input type="radio" name="enWhen" value="later"> Later, in year <input id="enYear" type="number" min="1900" max="2026"></label>
+          </p>
+          <p><label>Status
+            <select id="enStatus">
+              <option value="legal" selected>Legal first name</option>
+              <option value="middle">Legal middle name</option>
+              <option value="unofficial">Unofficial (family only, nickname)</option>
+            </select></label></p>
+
+          <h3>Places</h3>
+          <p><label>Where you were born <input id="origin" type="text"></label></p>
+          <p><label>Where you arrived in the US (if you moved) <input id="arrivalPlace" type="text"></label>
+             <label>Year <input id="arrivalYear" type="number" min="1900" max="2026"></label></p>
+          <p><label>Where you live now <input id="now" type="text"></label></p>
+        </fieldset>
+
+        <!-- Step 3 -->
+        <fieldset data-step="3" hidden>
+          <legend>3. What your Korean name means</legend>
+          <p>Do you know the meaning of your Korean given name?<br>
+            <label><input type="radio" name="know" value="yes" checked> Yes</label><br>
+            <label><input type="radio" name="know" value="partly"> Partly / not sure</label><br>
+            <label><input type="radio" name="know" value="no"> No</label>
+          </p>
+          <div id="know-yes">
+            <p><label>Hanja, if you know them (e.g. 智妍) <input id="hanjaInput" type="text"></label></p>
+            <p><label>Meaning <input id="meaningInput" type="text"></label></p>
+          </div>
+          <div id="know-partly" hidden>
+            <p>Here are some possible Hanja for each syllable. Pick one, or leave it as "Not sure."</p>
+            <div id="suggestions"></div>
+          </div>
+          <div id="know-no" hidden>
+            <p>That's okay. Your meaning will be marked as unknown.
+               Try asking your family, then come back and add a new entry.</p>
+          </div>
+        </fieldset>
+
+        <!-- Step 4 -->
+        <fieldset data-step="4" hidden>
+          <legend>4. How you use them now</legend>
+          <p><label>Who calls you by your Korean name? <input id="usedByKo" type="text"></label></p>
+          <p><label>Who calls you by your English name? <input id="usedByEn" type="text"></label></p>
+          <p><label>How often do you use your Korean name? (rarely to every day)
+            <input id="koUse" type="range" min="1" max="5" value="3"></label></p>
+          <p><label>How often do you use your English name? (rarely to every day)
+            <input id="enUse" type="range" min="1" max="5" value="3"></label></p>
+          <p><label>Which name is on your ID?
+            <select id="onId">
+              <option value="english">English</option>
+              <option value="korean">Korean</option>
+              <option value="both">Both</option>
+            </select></label></p>
+          <p><label>Which name feels most like you?
+            <select id="feelsLike">
+              <option value="korean">Korean</option>
+              <option value="english">English</option>
+              <option value="both">Both equally</option>
+              <option value="depends">Depends on where I am</option>
+            </select></label></p>
+        </fieldset>
+
+        <!-- Step 5 -->
+        <fieldset data-step="5" hidden>
+          <legend>5. Your story (optional)</legend>
+          <p><label>A short memory or quote about either name<br>
+            <textarea id="story" rows="5" cols="60"></textarea></label></p>
+        </fieldset>
+
+        <!-- Step 6 -->
+        <fieldset data-step="6" hidden>
+          <legend>6. Privacy</legend>
+          <p>How should your name appear?<br>
+            <label><input type="radio" name="privacy" value="full"> Full name</label><br>
+            <label><input type="radio" name="privacy" value="first" checked> First names only</label><br>
+            <label><input type="radio" name="privacy" value="anonymous"> Anonymous</label>
+          </p>
+          <p><label>Is a family member already in the archive? Link to their entry:
+            <select id="familyLink"></select></label></p>
+        </fieldset>
+
+        <!-- Step 7 -->
+        <fieldset data-step="7" hidden>
+          <legend>7. Preview your route</legend>
+          <div id="preview"></div>
+          <p><small>In the full site, submissions would wait for approval before appearing.
+             In this prototype, your entry is saved only in this browser.</small></p>
+        </fieldset>
+
+        <p>
+          <button type="button" id="back-btn">Back</button>
+          <button type="button" id="next-btn">Next</button>
+          <button type="submit" id="submit-btn" hidden>Submit</button>
+        </p>
+      </form>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="page" hidden>
+      <h2>About</h2>
+      <p>
+        Two Names is a thesis prototype exploring how names are given, chosen, and carried across generations
+        of Korean American families. It starts with Korean and English names, with the goal of expanding to
+        other languages and communities later.
+      </p>
+
+      <h3>How to read the lines</h3>
+      <ul>
+        <li><strong>Shared root:</strong> both names grow from the family name they share.</li>
+        <li><strong>Where a line starts:</strong> a name given at birth starts at the beginning; a name taken on later branches off at the year it began.</li>
+        <li><strong>Color:</strong> who gave the name &mdash;
+          <span style="color:#3366aa">parents</span>,
+          <span style="color:#7a4fa0">grandparents</span>,
+          <span style="color:#c0392b">self</span>,
+          <span style="color:#c77c00">teacher</span>,
+          <span style="color:#666666">someone else</span>.</li>
+        <li><strong>Thickness:</strong> how often the name is used today.</li>
+        <li><strong>Filled vs. outlined:</strong> a filled line is a legal name; an outlined line is unofficial.</li>
+        <li><strong>Solid, dashed, dotted (Korean name):</strong> meaning told by family, picked from suggestions, or unknown.</li>
+      </ul>
+
+      <h3>Privacy</h3>
+      <p>
+        You can show your full name, first names only, or stay anonymous. To remove an entry, contact the project.
+      </p>
+
+      <h3>Reference</h3>
+      <p>Domestic Data Streamers, <em>Calling Home</em> (2025).</p>
+    </section>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
