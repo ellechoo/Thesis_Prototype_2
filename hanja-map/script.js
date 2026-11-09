@@ -1,5 +1,9 @@
 // Shared Characters: Korean Hanja words, grouped by which other languages
 // (Chinese, Japanese, Vietnamese) use the same characters as a word.
+// Two views (an area-proportional map and a card list), filters by group,
+// search in any language, and a side panel comparing a word across languages.
+
+// ---------- Data ----------
 
 // Row fields (see words.js)
 const HANGUL = 0, HANJA = 1, KO_MEANING = 2, CAT = 3, LEVEL = 4,
@@ -10,10 +14,9 @@ const HANGUL = 0, HANJA = 1, KO_MEANING = 2, CAT = 3, LEVEL = 4,
 const isEveryday = w => w[LEVEL] === "beginner" || w[LEVEL] === "intermediate";
 const LEVEL_ORDER = { beginner: 0, intermediate: 1, advanced: 2 };
 
-// Romanized spellings for each word, worked out once (see romanize.js)
+// Romanized spellings and loose search keys, worked out once (see romanize.js)
 const KO_ROMAN = WORDS.map(w => romanizeKorean(w[HANGUL]));
 const JP_ROMAN = WORDS.map(w => w[JP_READING] ? kanaToRomaji(w[JP_READING]) : "");
-// Loose search keys
 const KEY_KO = KO_ROMAN.map(looseRoman);
 const KEY_JP = JP_ROMAN.map(looseRoman);
 const KEY_ZH = WORDS.map(w => plainPinyin(w[ZH_PINYIN]));
@@ -23,16 +26,17 @@ const KEY_YUE = WORDS.map(w => (w[YUE] || "").replace(/[^a-z]/g, ""));
 
 const LANG_NAME = { z: "Chinese", j: "Japanese", v: "Vietnamese" };
 
-// Every combination of languages, arranged in columns by how many languages share the word
+// Every combination of languages, in columns by how many languages share the word
 const COLUMNS = [
   { title: "Shared with all three", groups: ["zjv"] },
   { title: "Shared with two", groups: ["zj", "jv", "zv"] },
   { title: "Shared with one", groups: ["j", "z", "v"] },
   { title: "Not shared", groups: [""] }
 ];
+const GROUP_ORDER = ["zjv", "zj", "jv", "zv", "j", "z", "v", ""];
 
 function groupName(cat) {
-  if (!cat) return "None of them";
+  if (!cat) return "Not shared";
   if (cat === "zjv") return "All three";
   const names = Array.from(cat).map(c => LANG_NAME[c]);
   return names.length === 1 ? names[0] + " only" : names.join(" + ");
@@ -45,18 +49,91 @@ function sharedSentence(cat) {
   return "These characters are also a word in " + list + ".";
 }
 
-const canvas = document.getElementById("map");
-const ctx = canvas.getContext("2d");
-const tooltip = document.getElementById("tooltip");
+// ---------- State ----------
+
 const $ = id => document.getElementById(id);
+const canvas = $("map");
+const ctx = canvas.getContext("2d");
+const tooltip = $("tooltip");
 
-let layout = null;        // geometry and dot positions for the current size
-let selected = -1;        // index of the selected word
-let matches = new Set();  // indexes of search matches
+const state = {
+  view: "map",       // "map" or "list"
+  group: null,       // null = all groups, otherwise a category ("zjv", "", ...)
+  query: "",
+  matches: null,     // array of word indexes matching the search, best first; null = no search
+  matchSet: null,
+  everyday: false,
+  selected: -1
+};
 
-// ---------- Layout ----------
+let layout = null;   // map geometry for the current size and group
 
-// Small seeded random number generator, so the layout looks the same every time
+// ---------- Filtering ----------
+
+// The words the list shows, in display order
+function visibleWords() {
+  const base = state.matches || WORDS.map((_, i) => i);
+  return base.filter(i =>
+    (state.group === null || WORDS[i][CAT] === state.group) &&
+    (!state.everyday || isEveryday(WORDS[i])));
+}
+
+function updateStatus() {
+  const parts = [];
+  const where = state.group === null ? "all groups" : groupName(state.group);
+  if (state.matches) {
+    const n = state.matches.filter(i => state.group === null || WORDS[i][CAT] === state.group).length;
+    parts.push(n.toLocaleString() + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "” in " + where);
+  } else {
+    const n = state.group === null ? WORDS.length : (COUNTS[state.group] || 0);
+    parts.push(n.toLocaleString() + " words · " + where);
+  }
+  if (state.everyday) parts.push(state.view === "list" ? "everyday words only" : "everyday words highlighted");
+  $("status").textContent = parts.join(" · ");
+}
+
+// ---------- Group buttons ----------
+
+function renderGroupButtons() {
+  const box = $("groups");
+  box.innerHTML = "";
+  const make = (cat, label, count) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(state.group === cat));
+    b.textContent = label;
+    const n = document.createElement("span");
+    n.textContent = count.toLocaleString();
+    b.appendChild(n);
+    b.addEventListener("click", () => setGroup(cat));
+    box.appendChild(b);
+  };
+  make(null, "All groups", WORDS.length);
+  GROUP_ORDER.forEach(g => make(g, groupName(g), COUNTS[g] || 0));
+}
+
+function setGroup(cat) {
+  state.group = cat;
+  renderGroupButtons();
+  refresh();
+}
+
+function setView(view) {
+  state.view = view;
+  document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+  $("map-wrap").hidden = view !== "map";
+  $("list-wrap").hidden = view !== "list";
+  refresh();
+}
+
+function refresh() {
+  updateStatus();
+  if (state.view === "map") { buildLayout(); draw(); }
+  else renderList();
+}
+
+// ---------- Map layout ----------
+
 function seededRandom(seed) {
   return () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
@@ -65,142 +142,151 @@ function seededRandom(seed) {
 }
 
 function buildLayout() {
-  const width = canvas.clientWidth;
-  let height = Math.round(Math.min(Math.max(width * 0.72, 460), 760));
+  const wrap = $("map-wrap");
+  const width = wrap.clientWidth, height = wrap.clientHeight;
+  if (!width || !height) return;
   const dpr = window.devicePixelRatio || 1;
   canvas.width = width * dpr;
   canvas.height = height * dpr;
-  canvas.style.height = height + "px";
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const top = 34, labelH = 30, gap = 14, side = 12;
+  const circles = {};
+  const colX = [];
+  let s, top = 36;
+  const labelH = 30, gap = 14, side = 16;
 
-  // Every circle's area is proportional to its word count: r = s * sqrt(count).
-  // Find the largest s where all columns fit the width and height.
-  const fits = s => {
-    let w = side * 2 + gap * (COLUMNS.length - 1);
-    for (const col of COLUMNS) {
+  if (state.group !== null) {
+    // One group, as large as fits
+    const count = COUNTS[state.group] || 0;
+    if (width < 700) top = 80;   // room for the heading to wrap on narrow screens
+    const r =Math.max(20, Math.min(width / 2 - side, (height - top - labelH - 10) / 2));
+    circles[state.group] = { x: width / 2, y: top + r, r };
+    s = r / Math.sqrt(Math.max(count, 1));
+  } else {
+    // All groups: every circle's area is proportional to its word count, r = s * sqrt(count)
+    const fits = s => {
+      let w = side * 2 + gap * (COLUMNS.length - 1);
+      for (const col of COLUMNS) {
+        const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
+        w += Math.max(...rs.map(r => 2 * r), 110);
+        const h = top + rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
+        if (h > height - 6) return false;
+      }
+      return w <= width;
+    };
+    let lo = 0, hi = 60;
+    for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+    s = lo;
+    const colWidths = COLUMNS.map(col => Math.max(...col.groups.map(g => 2 * s * Math.sqrt(COUNTS[g] || 0)), 110));
+    const totalW = colWidths.reduce((a, b) => a + b, 0) + gap * (COLUMNS.length - 1);
+    let x = (width - totalW) / 2;
+    COLUMNS.forEach((col, ci) => {
+      const cx = x + colWidths[ci] / 2;
+      colX.push(cx);
       const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
-      w += Math.max(...rs.map(r => 2 * r), 110);
-      const h = top + rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
-      if (h > height - 6) return false;
-    }
-    return w <= width;
-  };
-  let lo = 0, hi = 50;
-  for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-  const s = lo;
-
-  // Trim unused height below the tallest column
-  const tallest = Math.max(...COLUMNS.map(col => {
-    const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
-    return top + rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
-  }));
-  if (tallest + 10 < height) {
-    height = Math.round(tallest + 10);
-    canvas.height = height * dpr;
-    canvas.style.height = height + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const colH = rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
+      let y = top + Math.max(0, (height - top - 6 - colH) / 2);
+      col.groups.forEach((g, gi) => {
+        circles[g] = { x: cx, y: y + rs[gi], r: rs[gi] };
+        y += 2 * rs[gi] + labelH + gap;
+      });
+      x += colWidths[ci] + gap;
+    });
   }
 
-  // Place the circles, centering each column vertically
-  const circles = {};
-  const colWidths = COLUMNS.map(col => Math.max(...col.groups.map(g => 2 * s * Math.sqrt(COUNTS[g] || 0)), 110));
-  const totalW = colWidths.reduce((a, b) => a + b, 0) + gap * (COLUMNS.length - 1);
-  let x = (width - totalW) / 2;
-  const colX = [];
-  COLUMNS.forEach((col, ci) => {
-    const cx = x + colWidths[ci] / 2;
-    colX.push(cx);
-    const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
-    const colH = rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
-    let y = top + Math.max(0, (height - top - 6 - colH) / 2);
-    col.groups.forEach((g, gi) => {
-      circles[g] = { x: cx, y: y + rs[gi], r: rs[gi] };
-      y += 2 * rs[gi] + labelH + gap;
-    });
-    x += colWidths[ci] + gap;
-  });
-
-  // Put each word at a random spot inside its group's circle
+  // Place each word at a random spot in its circle (same seed, so positions are stable)
   const rand = seededRandom(7);
-  const total = WORDS.length;
-  const xs = new Float32Array(total), ys = new Float32Array(total);
+  const xs = new Float32Array(WORDS.length), ys = new Float32Array(WORDS.length);
+  const shown = new Uint8Array(WORDS.length);
   WORDS.forEach((w, i) => {
-    const c = circles[w[CAT]];
     let px, py;
-    do { px = (rand() * 2 - 1); py = (rand() * 2 - 1); } while (px * px + py * py > 1);
+    do { px = rand() * 2 - 1; py = rand() * 2 - 1; } while (px * px + py * py > 1);
+    const c = circles[w[CAT]];
+    if (!c) return;
+    shown[i] = 1;
     xs[i] = c.x + px * c.r * 0.97;
     ys[i] = c.y + py * c.r * 0.97;
   });
 
-  // Grid index for fast hover lookups
-  const cell = 10, grid = new Map();
-  for (let i = 0; i < total; i++) {
+  const cell = 12, grid = new Map();
+  for (let i = 0; i < WORDS.length; i++) {
+    if (!shown[i]) continue;
     const key = Math.floor(xs[i] / cell) + "," + Math.floor(ys[i] / cell);
     if (!grid.has(key)) grid.set(key, []);
     grid.get(key).push(i);
   }
 
-  const dot = Math.max(0.8, s * 0.6);
-  layout = { width, height, circles, colX, xs, ys, grid, cell, dot, labelH };
+  const dot = Math.min(5, Math.max(0.8, s * 0.6));
+  layout = { width, height, circles, colX, xs, ys, shown, grid, cell, dot };
 }
 
-// ---------- Drawing ----------
+// ---------- Map drawing ----------
 
 function draw() {
-  const { width, height, circles, colX, xs, ys, dot } = layout;
-  const everyday = $("everyday").checked;
+  if (!layout) return;
+  const { width, height, circles, colX, xs, ys, shown, dot } = layout;
   ctx.clearRect(0, 0, width, height);
 
-  // Dots: faint ones first, then highlighted ones on top
   const faint = [], strong = [];
   for (let i = 0; i < WORDS.length; i++) {
-    const isStrong = matches.size ? matches.has(i) : everyday ? isEveryday(WORDS[i]) : true;
+    if (!shown[i]) continue;
+    const isStrong = state.matchSet ? state.matchSet.has(i) : state.everyday ? isEveryday(WORDS[i]) : true;
     (isStrong ? strong : faint).push(i);
   }
-  ctx.fillStyle = "rgba(0,0,0,0.10)";
-  ctx.beginPath();
-  faint.forEach(i => { ctx.moveTo(xs[i] + dot, ys[i]); ctx.arc(xs[i], ys[i], dot, 0, Math.PI * 2); });
-  ctx.fill();
-  ctx.fillStyle = matches.size || everyday ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.5)";
-  ctx.beginPath();
-  strong.forEach(i => { ctx.moveTo(xs[i] + dot, ys[i]); ctx.arc(xs[i], ys[i], dot, 0, Math.PI * 2); });
-  ctx.fill();
+  const drawDots = (list, style) => {
+    ctx.fillStyle = style;
+    ctx.beginPath();
+    list.forEach(i => { ctx.moveTo(xs[i] + dot, ys[i]); ctx.arc(xs[i], ys[i], dot, 0, Math.PI * 2); });
+    ctx.fill();
+  };
+  drawDots(faint, "rgba(0,0,0,0.10)");
+  drawDots(strong, state.matchSet || state.everyday ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.5)");
 
-  // Circle outlines and labels
+  // Circles and labels
   ctx.strokeStyle = "#000";
   ctx.lineWidth = 1;
   ctx.fillStyle = "#000";
   ctx.textAlign = "center";
   Object.entries(circles).forEach(([g, c]) => {
     ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(c.r, 2), 0, Math.PI * 2); ctx.stroke();
-    ctx.font = "500 13px Inter, system-ui, sans-serif";
-    ctx.fillText(groupName(g), c.x, c.y + c.r + 14);
+    ctx.font = "600 13px Inter, system-ui, sans-serif";
+    ctx.fillText(groupName(g), c.x, c.y + c.r + 15);
     ctx.font = "12px Inter, system-ui, sans-serif";
-    ctx.fillText((COUNTS[g] || 0).toLocaleString() + " words", c.x, c.y + c.r + 27);
+    ctx.fillText((COUNTS[g] || 0).toLocaleString() + " words", c.x, c.y + c.r + 28);
   });
-  ctx.font = "500 14px Inter, system-ui, sans-serif";
-  COLUMNS.forEach((col, ci) => ctx.fillText(col.title, colX[ci], 18));
+  ctx.font = "600 14px Inter, system-ui, sans-serif";
+  if (state.group === null) {
+    COLUMNS.forEach((col, ci) => ctx.fillText(col.title, colX[ci], 20));
+  } else {
+    const text = sharedSentence(state.group).replace("These characters are", "Korean words whose characters are");
+    const lines = [];
+    let line = "";
+    text.split(" ").forEach(w => {
+      const t = line ? line + " " + w : w;
+      if (ctx.measureText(t).width > width - 32 && line) { lines.push(line); line = w; } else line = t;
+    });
+    lines.push(line);
+    lines.forEach((l, n) => ctx.fillText(l, width / 2, 20 + n * 18));
+  }
 
   // Selected word
-  if (selected >= 0) {
-    const x = xs[selected], y = ys[selected];
+  if (state.selected >= 0 && shown[state.selected]) {
+    const x = xs[state.selected], y = ys[state.selected];
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(x, y, dot + 6, 0, Math.PI * 2); ctx.stroke();
-    const label = wordLabel(selected);
+    const label = wordLabel(state.selected);
     ctx.font = "500 15px Inter, system-ui, sans-serif";
-    const w = ctx.measureText(label).width + 10;
+    const w = ctx.measureText(label).width + 12;
     const lx = Math.min(Math.max(x - w / 2, 2), width - w - 2);
-    const ly = y - dot - 32 < 2 ? y + dot + 10 : y - dot - 32;
-    ctx.fillStyle = "#fff"; ctx.fillRect(lx, ly, w, 22);
-    ctx.strokeRect(lx, ly, w, 22);
+    const ly = y - dot - 34 < 2 ? y + dot + 10 : y - dot - 34;
+    ctx.fillStyle = "#fff"; ctx.fillRect(lx, ly, w, 24);
+    ctx.strokeRect(lx, ly, w, 24);
     ctx.fillStyle = "#000"; ctx.textAlign = "left";
-    ctx.fillText(label, lx + 5, ly + 16);
+    ctx.fillText(label, lx + 6, ly + 17);
   }
 }
 
-// ---------- Hover and click ----------
+// ---------- Map interaction ----------
 
 function nearestWord(x, y) {
   const { grid, cell, xs, ys } = layout;
@@ -217,25 +303,118 @@ function nearestWord(x, y) {
   return best;
 }
 
+// The group whose name label (below its circle) is under the pointer;
+// with circles = true, also the group whose circle is under the pointer
+function groupAt(x, y, circles) {
+  for (const [g, c] of Object.entries(layout.circles)) {
+    const inCircle = (x - c.x) ** 2 + (y - c.y) ** 2 <= c.r ** 2;
+    const onLabel = Math.abs(x - c.x) < 80 && y > c.y + c.r && y < c.y + c.r + 32;
+    if (onLabel || (circles && inCircle)) return g;
+  }
+  return undefined;
+}
+
 function pointer(e) {
   const rect = canvas.getBoundingClientRect();
   return [e.clientX - rect.left, e.clientY - rect.top];
 }
 
 canvas.addEventListener("mousemove", e => {
+  if (!layout) return;
   const [x, y] = pointer(e);
   const i = nearestWord(x, y);
-  if (i < 0) { tooltip.hidden = true; return; }
-  tooltip.textContent = WORDS[i][HANGUL] + " (" + KO_ROMAN[i] + ") " + WORDS[i][HANJA] + " · " + WORDS[i][KO_MEANING];
-  tooltip.hidden = false;
-  tooltip.style.left = Math.min(x + 12, layout.width - tooltip.offsetWidth - 4) + "px";
-  tooltip.style.top = (y + 14) + "px";
+  if (i >= 0) {
+    tooltip.textContent = WORDS[i][HANGUL] + " (" + KO_ROMAN[i] + ") " + WORDS[i][HANJA] + " · " + englishShort(WORDS[i][KO_MEANING]);
+    tooltip.hidden = false;
+    tooltip.style.left = Math.min(x + 14, layout.width - tooltip.offsetWidth - 4) + "px";
+    tooltip.style.top = Math.min(y + 16, layout.height - 28) + "px";
+    canvas.style.cursor = "pointer";
+    return;
+  }
+  tooltip.hidden = true;
+  const g = state.group === null ? groupAt(x, y, false) : undefined;
+  canvas.style.cursor = g !== undefined ? "zoom-in" : "crosshair";
+  canvas.title = g !== undefined ? "View " + groupName(g) + " by itself" : "";
 });
 canvas.addEventListener("mouseleave", () => { tooltip.hidden = true; });
 canvas.addEventListener("click", e => {
+  if (!layout) return;
   const [x, y] = pointer(e);
   const i = nearestWord(x, y);
-  if (i >= 0) select(i);
+  if (i >= 0) { select(i); return; }
+  if (state.group === null) {
+    const g = groupAt(x, y, false);
+    if (g !== undefined) setGroup(g);
+  }
+});
+// Double-clicking anywhere in a circle views that group by itself
+canvas.addEventListener("dblclick", e => {
+  if (!layout || state.group !== null) return;
+  const [x, y] = pointer(e);
+  const g = groupAt(x, y, true);
+  if (g !== undefined) setGroup(g);
+});
+
+// ---------- List view ----------
+
+const LIST_CHUNK = 240;
+let listItems = [], listShown = 0;
+
+function renderList() {
+  listItems = visibleWords();
+  listShown = 0;
+  $("list").innerHTML = "";
+  appendListChunk();
+  $("list-wrap").scrollTop = 0;
+}
+
+function appendListChunk() {
+  const box = $("list");
+  const frag = document.createDocumentFragment();
+  listItems.slice(listShown, listShown + LIST_CHUNK).forEach(i => frag.appendChild(card(i)));
+  box.appendChild(frag);
+  listShown = Math.min(listItems.length, listShown + LIST_CHUNK);
+  $("list-end").textContent = !listItems.length
+    ? "No words match these filters."
+    : listShown < listItems.length
+      ? "Showing " + listShown.toLocaleString() + " of " + listItems.length.toLocaleString() + " · scroll for more"
+      : listItems.length.toLocaleString() + " words";
+}
+
+function card(i) {
+  const w = WORDS[i];
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "card";
+  b.dataset.index = i;
+  b.setAttribute("aria-pressed", String(state.selected === i));
+  const ko = document.createElement("div");
+  ko.className = "ko";
+  ko.textContent = w[HANGUL] + " " + w[HANJA];
+  const roman = document.createElement("div");
+  roman.className = "roman";
+  roman.textContent = KO_ROMAN[i];
+  const gloss = document.createElement("div");
+  gloss.className = "gloss";
+  gloss.textContent = englishShort(w[KO_MEANING]);
+  const tags = document.createElement("div");
+  tags.className = "tags";
+  [["z", "ZH", "Chinese"], ["j", "JA", "Japanese"], ["v", "VI", "Vietnamese"]].forEach(([c, label, name]) => {
+    const t = document.createElement("span");
+    t.textContent = label;
+    const on = w[CAT].includes(c);
+    if (!on) t.className = "off";
+    t.title = (on ? "Also a word in " : "Not a word in ") + name;
+    tags.appendChild(t);
+  });
+  b.append(ko, roman, gloss, tags);
+  b.addEventListener("click", () => select(i));
+  return b;
+}
+
+$("list-wrap").addEventListener("scroll", () => {
+  const el = $("list-wrap");
+  if (listShown < listItems.length && el.scrollTop + el.clientHeight > el.scrollHeight - 400) appendListChunk();
 });
 
 // ---------- Detail panel ----------
@@ -275,75 +454,11 @@ function wordLabel(i) {
   return WORDS[i][HANGUL] + " " + WORDS[i][HANJA] + (g ? " · " + g : "");
 }
 
-function select(i) {
-  selected = i;
-  const w = WORDS[i];
-  const panel = $("detail");
-  panel.hidden = false;
-  panel.innerHTML = "";
-
-  const title = document.createElement("h2");
-  title.textContent = "“" + englishShort(w[KO_MEANING]) + "”";
-  panel.appendChild(title);
-
-  const head = document.createElement("p");
-  head.textContent = "Written " + w[HANJA] + ". " + sharedSentence(w[CAT]) +
-    (w[LEVEL] ? " Korea's Basic Korean Dictionary lists it as " + (w[LEVEL] === "intermediate" ? "an " : "a ") + w[LEVEL] + "-level word." : "");
-  panel.appendChild(head);
-
-  // How the same characters sound across the languages that share them
-  const sounds = [["Korean", KO_ROMAN[i]]];
-  if (w[VI_WORD]) sounds.push(["Vietnamese", w[VI_WORD]]);
-  if (w[JP_MEANING]) sounds.push(["Japanese", JP_ROMAN[i]]);
-  if (w[YUE]) sounds.push(["Cantonese", w[YUE].replace(/[1-6]/g, "")]);
-  if (w[ZH_MEANING]) sounds.push(["Mandarin", pinyinMarks(w[ZH_PINYIN])]);
-  if (sounds.length > 1) {
-    const line = document.createElement("p");
-    line.className = "sounds";
-    line.textContent = "How " + w[HANJA] + " sounds: " + sounds.map(([l, t]) => l + " " + t).join(" · ");
-    panel.appendChild(line);
-  }
-
-  const cols = document.createElement("div");
-  cols.className = "cols";
-  cols.appendChild(column("Korean", "Hangul, with Hanja", w[HANGUL] + " " + w[HANJA], KO_ROMAN[i], w[KO_MEANING],
-    w[KO_SOURCE].includes("k") ? "From the Basic Korean Dictionary." : "From kengdic only, a community dictionary.",
-    { text: w[HANGUL], lang: "ko", forms: [w[HANGUL]] }));
-  cols.appendChild(w[ZH_MEANING]
-    ? column("Chinese", "hanzi, with Mandarin pinyin and Cantonese Jyutping",
-        w[HANJA] + (w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== w[HANJA] ? " (simplified: " + w[ZH_SIMPLIFIED] + ")" : ""),
-        "Mandarin: " + pinyinMarks(w[ZH_PINYIN]) + (w[YUE] ? " · Cantonese: " + w[YUE] : ""), w[ZH_MEANING], "",
-        [{ text: w[ZH_SIMPLIFIED] || w[HANJA], lang: "zh", label: "Mandarin",
-           forms: [w[ZH_SIMPLIFIED], w[HANJA], pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] },
-         { text: w[YUE] ? w[HANJA] : "", lang: "yue", label: "Cantonese",
-           forms: w[YUE] ? [w[HANJA], w[YUE].replace(/ /g, "")] : [] }])
-    : column("Chinese", "hanzi", w[HANJA], "", "", "Not a word in the Chinese dictionary used here (CC-CEDICT)"));
-  cols.appendChild(w[JP_MEANING]
-    ? column("Japanese", "kanji, with kana and romaji", w[JP_FORM], w[JP_READING] + " · " + JP_ROMAN[i], w[JP_MEANING],
-        w[JP_FORM] !== w[HANJA] ? "Japan writes some characters in a simpler modern form." : "",
-        { text: w[JP_READING], lang: "ja", forms: [w[JP_FORM], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] })
-    : column("Japanese", "kanji", w[HANJA], "", "", "Not a word in the Japanese dictionary used here (JMdict)"));
-  const viCol = w[VI_MEANING]
-    ? column("Vietnamese", "written in the Latin alphabet today", w[VI_WORD], "", w[VI_MEANING],
-        "Matched by its Sino-Vietnamese reading.", { text: w[VI_WORD], lang: "vi", forms: [w[VI_WORD]] })
-    : column("Vietnamese", "Sino-Vietnamese", "", "", "", "No Vietnamese word with this reading was found in the dictionary used here.");
-  cols.appendChild(viCol);
-  panel.appendChild(cols);
-  if (w[VI_WORD]) checkVietnamese(i, viCol);
-
-  const voiceNote = document.createElement("p");
-  voiceNote.className = "voice-note";
-  voiceNote.textContent = "When a native speaker has recorded a word on Lingua Libre or Wikimedia Commons, the Listen button plays " +
-    "their recording. Otherwise it uses your device's built-in voice, which may sound robotic or misread a word " +
-    "(Japanese is read from its kana spelling). If a button is grayed out, there's no recording and no voice for that language " +
-    "on this device. Voices on this device: " + voiceSummary();
-  panel.appendChild(voiceNote);
-
-  const more = document.createElement("p");
-  more.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(w[HANJA]), "Look up " + w[HANJA] + " on Wiktionary"));
-  panel.appendChild(more);
-
-  draw();
+function el(tag, className, text) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (text !== undefined) e.textContent = text;
+  return e;
 }
 
 function makeLink(href, text) {
@@ -355,50 +470,154 @@ function makeLink(href, text) {
   return a;
 }
 
-function column(lang, script, word, reading, meaning, note, say) {
-  const div = document.createElement("div");
-  const h = document.createElement("h3");
-  h.textContent = lang;
-  div.appendChild(h);
-  const sub = document.createElement("small");
-  sub.textContent = script;
-  div.appendChild(sub);
-  if (word) {
-    const big = document.createElement("div");
-    big.className = "word";
-    big.textContent = word;
-    div.appendChild(big);
+// The intro shown in the side panel when no word is selected
+function renderIntro() {
+  const panel = $("detail");
+  panel.innerHTML = "";
+  const box = el("div", "intro");
+  box.appendChild(el("h2", "", "Korean words, shared across Asia"));
+  box.appendChild(el("p", "", "For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. " +
+    "Each dot or card is a Korean word built from those characters, called Hanja. Select one to see whether the same characters " +
+    "are also a word in Chinese, Japanese, and Vietnamese, what they mean there, and how they sound."));
+  box.appendChild(el("p", "", "You don't need to read any of these languages. Search in English, or try:"));
+  const ex = el("div", "examples");
+  ["school", "promise", "學校", "hakgyo", "がっこう", "học hiệu"].forEach(q => {
+    const b = el("button", "", q);
+    b.type = "button";
+    b.addEventListener("click", () => { $("search").value = q; runSearch(q, true); });
+    ex.appendChild(b);
+  });
+  box.appendChild(ex);
+  box.appendChild(el("p", "legend", "Map: circles group words by which languages share them, sized by word count. To view " +
+    "one group by itself, click its name, double-click its circle, or use the buttons above the map. List: the same words as cards, everyday words first. ZH, JA, and VI tags show which languages share each word."));
+  const about = el("button", "", "More about this site");
+  about.type = "button";
+  about.addEventListener("click", openAbout);
+  box.appendChild(about);
+  panel.appendChild(box);
+}
+
+function select(i) {
+  state.selected = i;
+  const w = WORDS[i];
+
+  // If the word isn't in the group being viewed, show all groups
+  if (state.group !== null && w[CAT] !== state.group) { state.group = null; renderGroupButtons(); refresh(); }
+
+  const panel = $("detail");
+  panel.innerHTML = "";
+  panel.scrollTop = 0;
+
+  const close = el("button", "close", "Close");
+  close.type = "button";
+  close.setAttribute("aria-label", "Close word details");
+  close.addEventListener("click", deselect);
+  panel.appendChild(close);
+
+  panel.appendChild(el("h2", "", "“" + englishShort(w[KO_MEANING]) + "”"));
+  panel.appendChild(el("div", "headword", w[HANGUL] + " " + w[HANJA]));
+  panel.appendChild(el("p", "summary", sharedSentence(w[CAT]) +
+    (w[LEVEL] ? " Korea's Basic Korean Dictionary lists it as " + (w[LEVEL] === "intermediate" ? "an " : "a ") + w[LEVEL] + "-level word." : "")));
+
+  // How the same characters sound in each language that shares them
+  const sounds = [["Korean", KO_ROMAN[i]]];
+  if (w[VI_WORD]) sounds.push(["Vietnamese", w[VI_WORD]]);
+  if (w[JP_MEANING]) sounds.push(["Japanese", JP_ROMAN[i]]);
+  if (w[YUE]) sounds.push(["Cantonese", w[YUE].replace(/[1-6]/g, "")]);
+  if (w[ZH_MEANING]) sounds.push(["Mandarin", pinyinMarks(w[ZH_PINYIN])]);
+  if (sounds.length > 1) {
+    const table = el("table", "sounds");
+    const cap = el("caption", "visually-hidden", "How " + w[HANJA] + " sounds in each language");
+    table.appendChild(cap);
+    sounds.forEach(([lang, text]) => {
+      const tr = document.createElement("tr");
+      tr.append(el("th", "", lang), el("td", "", text));
+      table.appendChild(tr);
+    });
+    panel.appendChild(table);
   }
-  if (reading) {
-    const r = document.createElement("div");
-    r.className = "reading";
-    r.textContent = reading;
-    div.appendChild(r);
+
+  // One section per language
+  panel.appendChild(langSection("Korean", w[HANGUL] + " " + w[HANJA], KO_ROMAN[i], w[KO_MEANING],
+    w[KO_SOURCE].includes("k") ? "From the Basic Korean Dictionary." : "From kengdic only, a community dictionary.",
+    [{ text: w[HANGUL], lang: "ko", forms: [w[HANGUL]] }]));
+
+  panel.appendChild(w[ZH_MEANING]
+    ? langSection("Chinese",
+        w[HANJA] + (w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== w[HANJA] ? " · simplified " + w[ZH_SIMPLIFIED] : ""),
+        "Mandarin " + pinyinMarks(w[ZH_PINYIN]) + (w[YUE] ? " · Cantonese " + w[YUE] : ""), w[ZH_MEANING], "",
+        [{ text: w[ZH_SIMPLIFIED] || w[HANJA], lang: "zh", label: "Mandarin",
+           forms: [w[ZH_SIMPLIFIED], w[HANJA], pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] },
+         { text: w[YUE] ? w[HANJA] : "", lang: "yue", label: "Cantonese",
+           forms: w[YUE] ? [w[HANJA], w[YUE].replace(/ /g, "")] : [] }])
+    : missingSection("Chinese", "Not a word in the Chinese dictionary used here (CC-CEDICT)."));
+
+  panel.appendChild(w[JP_MEANING]
+    ? langSection("Japanese", w[JP_FORM], w[JP_READING] + " · " + JP_ROMAN[i], w[JP_MEANING],
+        w[JP_FORM] !== w[HANJA] ? "Japan writes some of these characters in a simpler modern form." : "",
+        [{ text: w[JP_READING], lang: "ja", forms: [w[JP_FORM], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] }])
+    : missingSection("Japanese", "Not a word in the Japanese dictionary used here (JMdict)."));
+
+  if (w[VI_MEANING]) {
+    const vi = langSection("Vietnamese", w[VI_WORD], "", w[VI_MEANING], "Matched by its Sino-Vietnamese reading.",
+      [{ text: w[VI_WORD], lang: "vi", forms: [w[VI_WORD]] }]);
+    panel.appendChild(vi);
+    checkVietnamese(i, vi);
+  } else {
+    panel.appendChild(missingSection("Vietnamese", "No Vietnamese word with this reading was found in the dictionary used here."));
   }
-  [].concat(say || []).forEach(x => { if (x.text) div.appendChild(speakButton(x.text, x.lang, x.label, x.forms)); });
-  const m = document.createElement("p");
-  if (meaning) m.textContent = meaning;
-  else { m.className = "missing"; m.textContent = note; }
-  div.appendChild(m);
-  if (meaning && note) {
-    const n = document.createElement("small");
-    n.className = "note";
-    n.textContent = note;
-    div.appendChild(n);
-  }
-  return div;
+
+  const more = el("p");
+  more.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(w[HANJA]), "Look up " + w[HANJA] + " on Wiktionary"));
+  panel.appendChild(more);
+
+  const voices = el("details");
+  voices.appendChild(el("summary", "", "About the Listen buttons"));
+  voices.appendChild(el("p", "", "When a native speaker has recorded a word on Lingua Libre or Wikimedia Commons, Listen plays their " +
+    "recording. Otherwise it uses your device's built-in voice, which may sound robotic or misread a word (Japanese is read from its " +
+    "kana spelling). A grayed-out button means there's no recording and no voice for that language on this device."));
+  voices.appendChild(el("p", "", "Voices on this device: " + voiceSummary()));
+  panel.appendChild(voices);
+
+  // Keep the list and map in step with the selection
+  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  const c = document.querySelector('.card[data-index="' + i + '"]');
+  if (c) { c.setAttribute("aria-pressed", "true"); }
+  if (state.view === "map") draw();
+}
+
+function deselect() {
+  state.selected = -1;
+  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  renderIntro();
+  if (state.view === "map") draw();
+}
+
+function langSection(lang, word, reading, meaning, note, say) {
+  const sec = el("section", "lang");
+  sec.appendChild(el("h3", "", lang));
+  sec.appendChild(el("div", "word", word));
+  if (reading) sec.appendChild(el("div", "reading", reading));
+  sec.appendChild(el("p", "meaning", meaning));
+  say.forEach(x => { if (x.text) sec.appendChild(speakButton(x.text, x.lang, x.label, x.forms)); });
+  if (note) sec.appendChild(el("small", "note", note));
+  return sec;
+}
+
+function missingSection(lang, text) {
+  const sec = el("section", "lang missing");
+  sec.appendChild(el("h3", "", lang));
+  sec.appendChild(el("span", "missing-text", text));
+  return sec;
 }
 
 // Vietnamese words are matched by sound, so check Wiktionary live to see which
 // characters it lists for the Vietnamese word, and say if they differ.
 const viCheckCache = {};
-async function checkVietnamese(i, col) {
+async function checkVietnamese(i, section) {
   const w = WORDS[i];
-  const status = document.createElement("small");
-  status.className = "note";
-  status.textContent = " Checking Wiktionary…";
-  col.appendChild(document.createElement("br"));
-  col.appendChild(status);
+  const status = el("small", "note", "Checking Wiktionary…");
+  section.appendChild(status);
   try {
     if (!(w[VI_WORD] in viCheckCache)) {
       const url = "https://en.wiktionary.org/w/api.php?action=parse&format=json&formatversion=2&prop=text&redirects=1&origin=*&page=" +
@@ -410,12 +629,12 @@ async function checkVietnamese(i, col) {
         doc.querySelectorAll("style").forEach(s => s.remove());
         const text = doc.body.textContent;
         const start = text.indexOf("Vietnamese");
-        const section = start >= 0 ? text.slice(start, start + 4000) : "";
-        han = Array.from(new Set(section.match(/[一-鿿㐀-䶿]{2,}/g) || []));
+        const part = start >= 0 ? text.slice(start, start + 4000) : "";
+        han = Array.from(new Set(part.match(/[一-鿿㐀-䶿]{2,}/g) || []));
       }
       viCheckCache[w[VI_WORD]] = han;
     }
-    if (selected !== i) return;
+    if (state.selected !== i) return;
     const han = viCheckCache[w[VI_WORD]];
     const forms = [w[HANJA], w[JP_FORM], w[ZH_SIMPLIFIED]].filter(Boolean);
     status.textContent = "";
@@ -429,21 +648,15 @@ async function checkVietnamese(i, col) {
     }
     status.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(w[VI_WORD]), "See it on Wiktionary"));
   } catch (e) {
-    if (selected === i) status.textContent = " Couldn't reach Wiktionary to check this match.";
+    if (state.selected === i) status.textContent = "Couldn't reach Wiktionary to check this match.";
   }
 }
 
 // ---------- Search ----------
 
-// Searches in any of the four languages, in romanized spelling, or in English.
-// Exact matches come first, then words that start with the search, then others.
-function search(q) {
-  q = q.trim();
-  const results = $("results");
-  results.innerHTML = "";
-  matches = new Set();
-  if (!q) { draw(); return; }
-
+// Words matching a search in any of the languages, in romanized spelling, or in English.
+// Exact matches come first, then words that start with the search, then others; everyday words first in each.
+function findMatches(q) {
   const isHangul = /[가-힣]/.test(q);
   const isKana = /[぀-ヿ]/.test(q);
   const isHan = /[一-鿿]/.test(q);
@@ -453,8 +666,8 @@ function search(q) {
   const viKey = plainVietnamese(q);
   const hasViMarks = /[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(q);
   const wordRe = new RegExp("\\b" + lower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const ranked = [[], [], []];   // exact, starts with, contains / meaning match
   const kana = toHiragana(q);
+  const ranked = [[], [], []];
 
   WORDS.forEach((w, i) => {
     let rank = -1;
@@ -468,71 +681,128 @@ function search(q) {
     else if (isKana) test(KEY_JP_KANA[i], kana);
     else if (isHan) { test(w[HANJA], q); test(w[JP_FORM], q); test(w[ZH_SIMPLIFIED], q); }
     else if (hasViMarks) {
-      // Vietnamese with tone marks: compare exactly
       if (w[VI_WORD] && w[VI_WORD].toLowerCase() === lower) rank = 0;
       else if (w[VI_WORD] && w[VI_WORD].toLowerCase().startsWith(lower)) rank = 1;
     } else {
-      // Romanized Korean, Japanese, Chinese, or Vietnamese without tone marks
       [[KEY_KO[i], loose], [KEY_JP[i], loose], [KEY_ZH[i], pin], [KEY_VI[i], viKey], [KEY_YUE[i], pin]].forEach(([value, key]) => {
         if (!key || key.length < 2 || !value) return;
         if (value === key) rank = 0;
         else if (value.startsWith(key) && key.length >= 3 && rank !== 0) rank = 1;
       });
-      // English meanings in all four languages
       if (rank < 0) {
         const meanings = [w[KO_MEANING], w[ZH_MEANING], w[JP_MEANING], w[VI_MEANING]].map(m => m.toLowerCase());
-        if (meanings[0] === lower || englishShort(meanings[0]) === lower) rank = 0;
+        if (meanings[0] === lower || englishShort(meanings[0]).toLowerCase() === lower) rank = 0;
         else if (meanings.some(m => wordRe.test(m))) rank = 2;
       }
     }
     if (rank >= 0) ranked[rank].push(i);
   });
 
-  // Everyday words first within each group
   const byLevel = (a, b) => (LEVEL_ORDER[WORDS[a][LEVEL]] ?? 3) - (LEVEL_ORDER[WORDS[b][LEVEL]] ?? 3);
-  const found = ranked.flatMap(list => list.sort(byLevel));
-  found.forEach(i => matches.add(i));
+  return { list: ranked.flatMap(r => r.sort(byLevel)), exact: ranked[0].length };
+}
 
-  const summary = document.createElement("p");
-  summary.textContent = found.length
-    ? found.length.toLocaleString() + " match" + (found.length === 1 ? "" : "es") + (found.length > 30 ? ", showing the first 30" : "")
-    : "No words here match “" + q + "”. Try another spelling or an English word.";
-  results.appendChild(summary);
-  found.slice(0, 30).forEach(i => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = wordLabel(i);
-    b.addEventListener("click", () => select(i));
-    results.appendChild(b);
-  });
-  if (ranked[0].length === 1 || found.length === 1) select(found[0]);
-  else {
-    // Clear an earlier word that isn't part of these results
-    if (selected >= 0 && !matches.has(selected)) { selected = -1; $("detail").hidden = true; }
-    draw();
+// Runs a search: highlights matches in the map, filters the list, and shows suggestions.
+// pick = select the best match right away (for example after pressing Enter)
+function runSearch(q, pick) {
+  q = q.trim();
+  state.query = q;
+  if (!q) {
+    state.matches = null;
+    state.matchSet = null;
+    hideSuggestions();
+    refresh();
+    return;
   }
+  const { list, exact } = findMatches(q);
+  state.matches = list;
+  state.matchSet = new Set(list);
+  refresh();
+  if (pick || exact === 1) {
+    hideSuggestions();
+    if (list.length) select(list[0]);
+  } else {
+    showSuggestions(list, q);
+  }
+}
+
+let suggestionIndex = -1;
+
+function showSuggestions(list, q) {
+  const box = $("suggestions");
+  box.innerHTML = "";
+  suggestionIndex = -1;
+  if (!list.length) {
+    box.appendChild(el("div", "more", "No words match “" + q + "”. Try another spelling or an English word."));
+  } else {
+    list.slice(0, 8).forEach((i, n) => {
+      const b = el("button", "", wordLabel(i));
+      b.type = "button";
+      b.setAttribute("role", "option");
+      b.addEventListener("mousedown", e => e.preventDefault());   // keep focus in the search box
+      b.addEventListener("click", () => { hideSuggestions(); select(i); });
+      box.appendChild(b);
+    });
+    if (list.length > 8) {
+      box.appendChild(el("div", "more", list.length.toLocaleString() + " matches · all are highlighted in the map and shown in the list"));
+    }
+  }
+  box.hidden = false;
+  $("search").setAttribute("aria-expanded", "true");
+}
+
+function hideSuggestions() {
+  $("suggestions").hidden = true;
+  $("search").setAttribute("aria-expanded", "false");
 }
 
 let searchTimer = null;
 $("search").addEventListener("input", e => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => search(e.target.value), 200);
+  searchTimer = setTimeout(() => runSearch(e.target.value, false), 200);
 });
+$("search").addEventListener("keydown", e => {
+  const options = Array.from($("suggestions").querySelectorAll("button"));
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if ($("suggestions").hidden || !options.length) return;
+    e.preventDefault();
+    suggestionIndex = (suggestionIndex + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+    options.forEach((o, n) => o.setAttribute("aria-selected", String(n === suggestionIndex)));
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    clearTimeout(searchTimer);
+    if (suggestionIndex >= 0 && options[suggestionIndex]) options[suggestionIndex].click();
+    else runSearch(e.target.value, true);
+  } else if (e.key === "Escape") {
+    hideSuggestions();
+  }
+});
+$("search").addEventListener("blur", () => setTimeout(hideSuggestions, 150));
+$("search").addEventListener("focus", () => { if (state.matches && state.query) showSuggestions(state.matches, state.query); });
+
+// ---------- Other controls ----------
+
+$("everyday").addEventListener("change", e => { state.everyday = e.target.checked; refresh(); });
 $("random").addEventListener("click", () => {
-  const pool = $("everyday").checked ? WORDS.map((w, i) => isEveryday(w) ? i : -1).filter(i => i >= 0) : WORDS.map((_, i) => i);
-  select(pool[Math.floor(Math.random() * pool.length)]);
+  const pool = visibleWords().filter(i => !state.everyday || isEveryday(WORDS[i]));
+  const from = pool.length ? pool : WORDS.map((_, i) => i);
+  select(from[Math.floor(Math.random() * from.length)]);
 });
-$("everyday").addEventListener("change", draw);
-document.querySelectorAll("[data-example]").forEach(b => b.addEventListener("click", () => {
-  $("search").value = b.dataset.example;
-  search(b.dataset.example);
-}));
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+function openAbout() { $("about").showModal(); }
+$("about-open").addEventListener("click", openAbout);
+$("about-close").addEventListener("click", () => $("about").close());
+$("about").addEventListener("click", e => { if (e.target === $("about")) $("about").close(); });   // click outside closes
 
 let resizeTimer = null;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { buildLayout(); draw(); }, 150);
+  resizeTimer = setTimeout(() => { if (state.view === "map") { buildLayout(); draw(); } }, 150);
 });
 
-buildLayout();
-draw();
+// ---------- Start ----------
+
+renderGroupButtons();
+renderIntro();
+refresh();

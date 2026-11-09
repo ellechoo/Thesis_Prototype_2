@@ -1,148 +1,323 @@
-/* Intentionally minimal: black on white. */
+/* Black on white, full-screen app layout. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
 
 body {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
   font-family: Inter, system-ui, sans-serif;
+  font-size: 15px;
   color: #000;
   background: #fff;
 }
 
-#controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-#search {
-  flex: 1 1 220px;
-  padding: 6px 8px;
-  border: 1px solid #000;
-  font: inherit;
-}
+a { color: #000; }
 
 button {
   padding: 6px 10px;
   border: 1px solid #000;
   background: #fff;
+  color: #000;
   font: inherit;
   cursor: pointer;
 }
 
-#examples {
-  flex-basis: 100%;
+button:hover { background: #f0f0f0; }
+button[aria-pressed="true"] { background: #000; color: #fff; }
+button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #000;
+}
+
+.topbar h1 {
   margin: 0;
-  font-size: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-#examples button {
-  margin-left: 4px;
-  padding: 2px 8px;
+.search-wrap {
+  position: relative;
+  flex: 1 1 280px;
 }
 
-#detail h2 {
-  margin: 0 0 4px;
+#search {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #000;
+  font: inherit;
 }
 
-#detail .reading {
-  font-size: 15px;
+#suggestions {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #000;
+  border-top: 0;
 }
 
-#results {
-  flex-basis: 100%;
-  font-size: 14px;
+#suggestions button {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  padding: 7px 10px;
 }
 
-#results button {
-  margin: 0 6px 6px 0;
-  padding: 2px 8px;
+#suggestions button[aria-selected="true"] { background: #f0f0f0; }
+#suggestions .more { padding: 7px 10px; color: #555; font-size: 13px; }
+
+.toggle { white-space: nowrap; }
+
+/* ---------- Toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #ccc;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.view-switch { display: flex; }
+.view-switch button + button { border-left: 0; }
+
+#groups {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 360px;
+  gap: 6px;
+}
+
+#groups button {
+  padding: 4px 9px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#groups button span { color: inherit; opacity: 0.6; margin-left: 4px; }
+
+#status {
+  margin: 0 0 0 auto;
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+}
+
+/* ---------- Main layout ---------- */
+
+.layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+#view {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #map-wrap {
   position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 #map {
   display: block;
   width: 100%;
-  border: 1px solid #000;
+  height: 100%;
   cursor: crosshair;
 }
 
 #tooltip {
   position: absolute;
   pointer-events: none;
-  padding: 2px 6px;
+  padding: 3px 7px;
   background: #fff;
   border: 1px solid #000;
   font-size: 13px;
   white-space: nowrap;
 }
 
-#detail {
-  margin-top: 16px;
-  border: 1px solid #000;
+/* ---------- List view ---------- */
+
+#list-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: 12px 16px;
 }
 
-#detail .cols {
+#list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
 }
 
-#detail h3 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 500;
+.card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border: 1px solid #ccc;
+  background: #fff;
 }
 
-#detail .word {
-  font-size: 28px;
+.card:hover { border-color: #000; background: #fff; }
+.card[aria-pressed="true"] { border: 2px solid #000; padding: 9px; background: #fff; color: #000; }
+
+.card .ko { font-size: 18px; }
+.card .roman { font-size: 13px; color: #555; }
+.card .gloss { font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .tags { margin-top: 6px; display: flex; gap: 4px; }
+.card .tags span { font-size: 11px; border: 1px solid #000; padding: 0 4px; }
+.card .tags span.off { border-color: #ddd; color: #bbb; }
+
+#list-end {
+  text-align: center;
+  color: #555;
+  font-size: 13px;
 }
 
-#detail .note {
-  display: inline-block;
-  margin-top: 4px;
+/* ---------- Detail panel ---------- */
+
+#detail {
+  width: 420px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 16px 20px 24px;
+  border-left: 1px solid #000;
 }
 
-#detail .missing {
-  color: #777;
-}
-
-button.speak {
-  margin-top: 6px;
+#detail .close {
+  float: right;
   padding: 2px 8px;
   font-size: 13px;
 }
 
-button.speak:disabled {
-  color: #999;
-  border-color: #999;
-  cursor: not-allowed;
+#detail h2 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 600;
 }
 
-#detail .voice-note {
-  font-size: 13px;
-  color: #555;
+#detail .headword {
+  font-size: 30px;
+  margin: 6px 0 4px;
 }
 
-.listen {
-  display: block;
-  margin-top: 6px;
+#detail .summary { margin: 8px 0 12px; line-height: 1.45; }
+
+#detail table.sounds {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 14px;
+  font-size: 14px;
 }
 
-.listen .credit {
-  color: #555;
+#detail table.sounds th,
+#detail table.sounds td {
+  text-align: left;
+  padding: 3px 0;
+  border-bottom: 1px solid #eee;
 }
 
-#detail .sounds {
+#detail table.sounds th { font-weight: 500; width: 40%; color: #555; }
+
+#detail section.lang {
+  border-top: 1px solid #000;
+  padding: 10px 0 12px;
+}
+
+#detail section.lang h3 {
+  margin: 0 0 4px;
   font-size: 15px;
+  font-weight: 600;
 }
 
-.speech-error {
-  color: #a00;
+#detail section.lang .word { font-size: 22px; }
+#detail section.lang .reading { font-size: 14px; color: #333; }
+#detail section.lang .meaning { margin: 6px 0; line-height: 1.4; }
+#detail section.lang.missing { color: #777; }
+#detail section.lang.missing h3 { display: inline; margin-right: 6px; }
+
+#detail .note { display: block; margin-top: 4px; font-size: 12px; color: #555; }
+#detail .missing-text { color: #777; font-size: 14px; }
+
+.listen { display: block; margin-top: 6px; }
+.listen .credit { font-size: 12px; color: #555; }
+button.speak { padding: 3px 9px; font-size: 13px; }
+button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
+.speech-error { color: #a00; }
+
+#detail details { margin-top: 12px; font-size: 13px; color: #333; }
+#detail details summary { cursor: pointer; }
+
+/* Intro shown when no word is selected */
+#detail .intro p { line-height: 1.5; }
+#detail .examples { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+#detail .examples button { padding: 3px 9px; font-size: 13px; }
+#detail .legend { font-size: 13px; color: #333; }
+
+/* ---------- About dialog ---------- */
+
+dialog#about {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 20px 24px;
+  border: 1px solid #000;
+  line-height: 1.5;
+}
+
+dialog#about::backdrop { background: rgba(0, 0, 0, 0.35); }
+
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-head h2 { margin: 0; font-size: 20px; }
+dialog#about h3 { margin: 18px 0 6px; font-size: 16px; }
+dialog#about ul { padding-left: 20px; }
+dialog#about li { margin-bottom: 6px; }
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .layout { flex-direction: column; }
+  #map-wrap { flex: none; height: 70vh; }
+  #list-wrap { flex: none; max-height: 75vh; }
+  #detail { width: auto; border-left: 0; border-top: 1px solid #000; }
+  #status { margin-left: 0; }
 }
