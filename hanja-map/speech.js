@@ -85,6 +85,7 @@ function voiceSummary() {
 }
 
 function updateSpeakButton(b) {
+  if (b.textContent.includes("native speaker")) return;
   const lang = b.dataset.lang;
   const ok = speechSupported && !!voiceFor(lang);
   b.disabled = !ok;
@@ -96,15 +97,61 @@ function updateSpeakButton(b) {
       : "This browser can't speak text aloud";
 }
 
-// A small "Listen" button that reads text aloud in one language
-function speakButton(text, lang, label) {
+// A "Listen" button for one language. It plays a native speaker recording from Wikimedia Commons
+// when one exists (looked up as soon as the button is made), and otherwise the device's voice.
+// forms = the spellings a recording might be filed under; text = what the device voice reads.
+const RECORD_URL = "https://lingualibre.org/wiki/Special:RecordWizard";
+
+function speakButton(text, lang, label, forms) {
+  const wrap = document.createElement("span");
+  wrap.className = "listen";
   const b = document.createElement("button");
   b.type = "button";
   b.className = "speak";
   b.dataset.lang = lang;
   b.textContent = "▶ " + (label || "Listen");
   b.setAttribute("aria-label", "Listen to the " + SPEECH_LANGS[lang].name + " pronunciation");
-  b.addEventListener("click", () => speak(text, lang, b));
+  const credit = document.createElement("small");
+  credit.className = "credit";
+  wrap.appendChild(b);
+  wrap.appendChild(credit);
+
+  let recording = null;
+  b.addEventListener("click", () => {
+    if (recording) {
+      playRecording(recording).catch(() => speak(text, lang, b));
+    } else {
+      speak(text, lang, b);
+    }
+  });
   updateSpeakButton(b);
-  return b;
+
+  // Look for a native recording
+  if (forms && forms.length) {
+    credit.textContent = " Checking for a native recording…";
+    findRecording(lang, forms).then(rec => {
+      credit.textContent = "";
+      if (rec) {
+        recording = rec;
+        b.disabled = false;
+        b.textContent = "▶ " + (label || "Listen") + " (native speaker)";
+        b.title = "Recording by " + rec.speaker + " on " + rec.source;
+        credit.appendChild(document.createTextNode(" Recorded by " + rec.speaker + " · " + rec.license + " · "));
+        credit.appendChild(makeAnchor(rec.page, rec.source));
+      } else {
+        credit.appendChild(document.createTextNode(" No native recording yet. "));
+        credit.appendChild(makeAnchor(RECORD_URL, "Record it on Lingua Libre"));
+      }
+    }).catch(() => { credit.textContent = ""; });
+  }
+  return wrap;
+}
+
+function makeAnchor(href, text) {
+  const a = document.createElement("a");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = text;
+  return a;
 }

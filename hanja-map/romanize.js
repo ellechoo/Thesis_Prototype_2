@@ -108,3 +108,8 @@ function plainVietnamese(s) {
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z]/g, "");
 }
+
+// Hepburn with long-vowel marks, as used in some recording file names: "gakkou" → "gakkō"
+function romajiWithMacrons(r) {
+  return r.replace(/ou/g, "ō").replace(/oo/g, "ō").replace(/uu/g, "ū").replace(/aa/g, "ā");
+}

@@ -308,21 +308,24 @@ function select(i) {
   cols.className = "cols";
   cols.appendChild(column("Korean", "Hangul, with Hanja", w[HANGUL] + " " + w[HANJA], KO_ROMAN[i], w[KO_MEANING],
     w[KO_SOURCE].includes("k") ? "From the Basic Korean Dictionary." : "From kengdic only, a community dictionary.",
-    { text: w[HANGUL], lang: "ko" }));
+    { text: w[HANGUL], lang: "ko", forms: [w[HANGUL]] }));
   cols.appendChild(w[ZH_MEANING]
     ? column("Chinese", "hanzi, with Mandarin pinyin and Cantonese Jyutping",
         w[HANJA] + (w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== w[HANJA] ? " (simplified: " + w[ZH_SIMPLIFIED] + ")" : ""),
         "Mandarin: " + pinyinMarks(w[ZH_PINYIN]) + (w[YUE] ? " · Cantonese: " + w[YUE] : ""), w[ZH_MEANING], "",
-        [{ text: w[ZH_SIMPLIFIED] || w[HANJA], lang: "zh", label: "Mandarin" }, { text: w[YUE] ? w[HANJA] : "", lang: "yue", label: "Cantonese" }])
+        [{ text: w[ZH_SIMPLIFIED] || w[HANJA], lang: "zh", label: "Mandarin",
+           forms: [w[ZH_SIMPLIFIED], w[HANJA], pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] },
+         { text: w[YUE] ? w[HANJA] : "", lang: "yue", label: "Cantonese",
+           forms: w[YUE] ? [w[HANJA], w[YUE].replace(/ /g, "")] : [] }])
     : column("Chinese", "hanzi", w[HANJA], "", "", "Not a word in the Chinese dictionary used here (CC-CEDICT)"));
   cols.appendChild(w[JP_MEANING]
     ? column("Japanese", "kanji, with kana and romaji", w[JP_FORM], w[JP_READING] + " · " + JP_ROMAN[i], w[JP_MEANING],
         w[JP_FORM] !== w[HANJA] ? "Japan writes some characters in a simpler modern form." : "",
-        { text: w[JP_READING], lang: "ja" })
+        { text: w[JP_READING], lang: "ja", forms: [w[JP_FORM], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] })
     : column("Japanese", "kanji", w[HANJA], "", "", "Not a word in the Japanese dictionary used here (JMdict)"));
   const viCol = w[VI_MEANING]
     ? column("Vietnamese", "written in the Latin alphabet today", w[VI_WORD], "", w[VI_MEANING],
-        "Matched by its Sino-Vietnamese reading.", { text: w[VI_WORD], lang: "vi" })
+        "Matched by its Sino-Vietnamese reading.", { text: w[VI_WORD], lang: "vi", forms: [w[VI_WORD]] })
     : column("Vietnamese", "Sino-Vietnamese", "", "", "", "No Vietnamese word with this reading was found in the dictionary used here.");
   cols.appendChild(viCol);
   panel.appendChild(cols);
@@ -330,9 +333,10 @@ function select(i) {
 
   const voiceNote = document.createElement("p");
   voiceNote.className = "voice-note";
-  voiceNote.textContent = "Pronunciations use your device's built-in voices, so they may sound robotic or occasionally misread a word. " +
-    "Japanese is read from its kana spelling. If a Listen button is grayed out, your device has no voice for that language. " +
-    "Voices on this device: " + voiceSummary();
+  voiceNote.textContent = "When a native speaker has recorded a word on Lingua Libre or Wikimedia Commons, the Listen button plays " +
+    "their recording. Otherwise it uses your device's built-in voice, which may sound robotic or misread a word " +
+    "(Japanese is read from its kana spelling). If a button is grayed out, there's no recording and no voice for that language " +
+    "on this device. Voices on this device: " + voiceSummary();
   panel.appendChild(voiceNote);
 
   const more = document.createElement("p");
@@ -371,7 +375,7 @@ function column(lang, script, word, reading, meaning, note, say) {
     r.textContent = reading;
     div.appendChild(r);
   }
-  [].concat(say || []).forEach(x => { if (x.text) div.appendChild(speakButton(x.text, x.lang, x.label)); });
+  [].concat(say || []).forEach(x => { if (x.text) div.appendChild(speakButton(x.text, x.lang, x.label, x.forms)); });
   const m = document.createElement("p");
   if (meaning) m.textContent = meaning;
   else { m.className = "missing"; m.textContent = note; }

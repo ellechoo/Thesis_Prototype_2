@@ -130,8 +130,13 @@ button.speak:disabled {
   color: #555;
 }
 
-button.speak + button.speak {
-  margin-left: 6px;
+.listen {
+  display: block;
+  margin-top: 6px;
+}
+
+.listen .credit {
+  color: #555;
 }
 
 #detail .sounds {

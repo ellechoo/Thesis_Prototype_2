@@ -57,7 +57,11 @@
         <li>You can search in English; in Korean (Hangul or romanized, like <em>hakgyo</em>); in Chinese (traditional or simplified
             characters, Mandarin pinyin without tones, like <em>xuexiao</em>, or Cantonese Jyutping, like <em>hokhaau</em>); in Japanese (kanji, kana, or romaji, like <em>gakkou</em> or <em>gakko</em>);
             or in Vietnamese, with or without tone marks (<em>học hiệu</em> or <em>hoc hieu</em>).</li>
-        <li>Each word has a Listen button for every language, including both Mandarin and Cantonese. It uses your device's built-in voices. To add a missing language on a Mac,
+        <li>Each word has a Listen button for every language, including both Mandarin and Cantonese. If a native speaker has recorded
+            the word on <a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a> or Wikimedia Commons, you'll
+            hear their recording, credited to them. Many words haven't been recorded yet, especially in Korean. If you speak one of
+            these languages, you can record words on Lingua Libre, and your recordings will appear here.</li>
+        <li>Otherwise, the Listen button uses your device's built-in voice. It uses your device's built-in voices. To add a missing language on a Mac,
             open System Settings → Accessibility → Spoken Content → System Voice → Manage Voices. On Windows, go to
             Settings → Time &amp; language → Speech → Add voices.</li>
         <li>"Everyday words" are the 2,403 words here that Korea's Basic Korean Dictionary marks as beginner or intermediate vocabulary.</li>
@@ -101,6 +105,9 @@
             Sino-Vietnamese readings from <a href="https://github.com/ph0ngp/hanviet-pinyin-words" target="_blank" rel="noopener">hanviet-pinyin-words</a> (MIT).</li>
         <li><strong>Cantonese:</strong> Jyutping readings from <a href="https://github.com/CanCLID/to-jyutping" target="_blank" rel="noopener">to-jyutping</a>
             by the Cantonese Computational Linguistics Infrastructure Development Workgroup (BSD-2-Clause), shown for words shared with Chinese.</li>
+        <li><strong>Native recordings:</strong> looked up live on <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a>,
+            mostly from <a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a>. Each recording is credited to its
+            speaker and keeps its own license (usually CC BY-SA 4.0), shown next to the Listen button.</li>
         <li><strong>Character forms:</strong> <a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Unihan</a>
             (kJapaneseNewVariant), used to match older Hanja forms like 學 to modern Japanese forms like 学.</li>
         <li>Meanings are shortened. Matching uses whole words written with the same characters.</li>
@@ -110,6 +117,7 @@
 
   <script src="words.js"></script>
   <script src="romanize.js"></script>
+  <script src="recordings.js"></script>
   <script src="speech.js"></script>
   <script src="script.js"></script>
 </body>
