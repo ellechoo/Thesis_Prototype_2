@@ -1,0 +1,143 @@
+/* Intentionally minimal: black on white. */
+
+body {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: Inter, system-ui, sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#search {
+  flex: 1 1 220px;
+  padding: 6px 8px;
+  border: 1px solid #000;
+  font: inherit;
+}
+
+button {
+  padding: 6px 10px;
+  border: 1px solid #000;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+#examples {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+}
+
+#examples button {
+  margin-left: 4px;
+  padding: 2px 8px;
+}
+
+#detail h2 {
+  margin: 0 0 4px;
+}
+
+#detail .reading {
+  font-size: 15px;
+}
+
+#results {
+  flex-basis: 100%;
+  font-size: 14px;
+}
+
+#results button {
+  margin: 0 6px 6px 0;
+  padding: 2px 8px;
+}
+
+#map-wrap {
+  position: relative;
+}
+
+#map {
+  display: block;
+  width: 100%;
+  border: 1px solid #000;
+  cursor: crosshair;
+}
+
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 2px 6px;
+  background: #fff;
+  border: 1px solid #000;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#detail {
+  margin-top: 16px;
+  border: 1px solid #000;
+  padding: 12px 16px;
+}
+
+#detail .cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+#detail h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#detail .word {
+  font-size: 28px;
+}
+
+#detail .note {
+  display: inline-block;
+  margin-top: 4px;
+}
+
+#detail .missing {
+  color: #777;
+}
+
+button.speak {
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+button.speak:disabled {
+  color: #999;
+  border-color: #999;
+  cursor: not-allowed;
+}
+
+#detail .voice-note {
+  font-size: 13px;
+  color: #555;
+}
+
+button.speak + button.speak {
+  margin-left: 6px;
+}
+
+#detail .sounds {
+  font-size: 15px;
+}
+
+.speech-error {
+  color: #a00;
+}

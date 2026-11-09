@@ -25,7 +25,7 @@
       <p>
         This archive collects the stories of immigrants who chose an English name after arriving in the US,
         and their US-born children, who were usually given both a Korean and an English name.
-        Each person's names are drawn as two lines growing from a shared family name.
+        Each person's names are drawn as two lines that start from the same point and split, run side by side, or fade.
       </p>
       <svg id="home-route" width="640" height="190"></svg>
       <p><a href="#archive">Explore the archive</a> or <a href="#add">add your names</a>.</p>
@@ -79,14 +79,9 @@
         <!-- Step 1 -->
         <fieldset data-step="1">
           <legend>1. Your names</legend>
-          <p><label>Family name in Korean (e.g. 김) <input id="surnameKo" type="text"></label></p>
-          <p><label>Family name in English (e.g. Kim, Lee, Rhee) * <input id="surnameEn" type="text"></label></p>
-          <p><label>English family name, if different (e.g. married name) <input id="surnameEnAlt" type="text"></label></p>
-          <p><label>Clan origin (본관), if you know it <input id="clan" type="text"></label></p>
+          <p><small>We only ask for first names. Please leave out your family name.</small></p>
           <p><label>Korean given name in Hangul (e.g. 지연) * <input id="koGiven" type="text"></label></p>
           <p><label>English first name * <input id="enFirst" type="text"></label></p>
-          <p><label>English middle name <input id="enMiddle" type="text"></label></p>
-          <p><label>Year you were born * <input id="birthYear" type="number" min="1900" max="2026"></label></p>
           <p>Where were you born?<br>
             <label><input type="radio" name="generation" value="immigrant" checked> Outside the US, and I moved here</label><br>
             <label><input type="radio" name="generation" value="usborn"> In the US</label>
@@ -106,9 +101,10 @@
               <option value="teacher">A teacher</option>
               <option value="other">Someone else</option>
             </select></label></p>
-          <p>When?
+          <p><label>Year this name was given * <input id="koYear" type="number" min="1900" max="2026"></label>
+            <small>(an estimate is fine)</small><br>
             <label><input type="radio" name="koWhen" value="birth" checked> At birth</label>
-            <label><input type="radio" name="koWhen" value="later"> Later, in year <input id="koYear" type="number" min="1900" max="2026"></label>
+            <label><input type="radio" name="koWhen" value="later"> Later in life</label>
           </p>
           <p><label>Status
             <select id="koStatus">
@@ -126,9 +122,10 @@
               <option value="teacher">A teacher</option>
               <option value="other">Someone else</option>
             </select></label></p>
-          <p>When?
+          <p><label>Year this name was given * <input id="enYear" type="number" min="1900" max="2026"></label>
+            <small>(an estimate is fine)</small><br>
             <label><input type="radio" name="enWhen" value="birth" checked> At birth</label>
-            <label><input type="radio" name="enWhen" value="later"> Later, in year <input id="enYear" type="number" min="1900" max="2026"></label>
+            <label><input type="radio" name="enWhen" value="later"> Later in life</label>
           </p>
           <p><label>Status
             <select id="enStatus">
@@ -137,33 +134,78 @@
               <option value="unofficial">Unofficial (family only, nickname)</option>
             </select></label></p>
 
-          <h3>Places</h3>
-          <p><label>Where you were born <input id="origin" type="text"></label></p>
-          <p><label>Where you arrived in the US (if you moved) <input id="arrivalPlace" type="text"></label>
-             <label>Year <input id="arrivalYear" type="number" min="1900" max="2026"></label></p>
-          <p><label>Where you live now <input id="now" type="text"></label></p>
+          <div id="moved-fields">
+            <h3>Moving to the US</h3>
+            <p><label>Country you were born in <input id="country" type="text" value="South Korea"></label></p>
+            <p><label>Year you moved to the US <input id="movedYear" type="number" min="1900" max="2026"></label></p>
+          </div>
+          <p id="step2-error" class="error"></p>
         </fieldset>
 
         <!-- Step 3 -->
         <fieldset data-step="3" hidden>
-          <legend>3. What your Korean name means</legend>
-          <p>Do you know the meaning of your Korean given name?<br>
-            <label><input type="radio" name="know" value="yes" checked> Yes</label><br>
-            <label><input type="radio" name="know" value="partly"> Partly / not sure</label><br>
-            <label><input type="radio" name="know" value="no"> No</label>
+          <legend>3. What your names mean</legend>
+
+          <h3>Korean name: <span id="ko-name-label"></span></h3>
+          <div id="ko-lookup">
+            <h4>What sources say about this name</h4>
+            <div id="ko-lookup-results"><p>Looking it up&hellip;</p></div>
+          </div>
+          <p>Do you know what your Korean given name means?<br>
+            <label><input type="radio" name="koKnow" value="yes" checked> Yes</label><br>
+            <label><input type="radio" name="koKnow" value="no"> No, or not sure</label>
           </p>
-          <div id="know-yes">
+          <div id="ko-know-yes">
             <p><label>Hanja, if you know them (e.g. 智妍) <input id="hanjaInput" type="text"></label></p>
             <p><label>Meaning <input id="meaningInput" type="text"></label></p>
           </div>
-          <div id="know-partly" hidden>
-            <p>Here are some possible Hanja for each syllable. Pick one, or leave it as "Not sure."</p>
+          <div id="ko-know-no" hidden>
+            <h4>Finding out what your name means</h4>
+            <p>Each Korean syllable can be written with many different Hanja, and each one has its own meaning.
+               Only the people who named you know which ones they chose, so this site won't guess for you.
+               Here's how you can find out:</p>
+            <ul>
+              <li><strong>Ask your family.</strong> You could send a parent or grandparent this message:
+                <br><q id="ask-family-ko"></q>
+                <button type="button" id="copy-ask">Copy</button> <span id="copy-status"></span>
+                <br><small id="ask-family-en"></small></li>
+              <li><strong>Check family documents.</strong> If you were registered in Korea, your family relations certificate
+                (가족관계증명서) shows your name in Hanja. Baby books, first birthday (돌) records, or a naming certificate
+                from a name maker (작명소) may also have it.</li>
+            </ul>
+            <p><small>If you don't know yet, leave everything below as "Not sure." Your meaning will be marked as unknown,
+               and you can add a new entry once you find out.</small></p>
+
+            <h4>Explore what each syllable could mean</h4>
+            <p>If you're curious, here are the possibilities. Common characters (the 1,800 taught in Korean schools) are listed first.
+               If one sounds familiar, you can select it. It will be saved as a guess, not a confirmed meaning.</p>
             <div id="suggestions"></div>
+            <p><label>Your guess at the meaning (you can edit this) <input id="koSuggestedMeaning" type="text" size="40"></label></p>
+            <p><small>The characters are every one on Korea's official list of Hanja allowed in names (인명용 한자). English definitions are from the
+               <a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Han Database (Unihan)</a>
+               and are mostly based on Chinese usage. When you select a character, its Korean meaning (음훈) is looked up on
+               <a href="https://en.wiktionary.org" target="_blank" rel="noopener">Wiktionary</a> when available.</small></p>
           </div>
-          <div id="know-no" hidden>
-            <p>That's okay. Your meaning will be marked as unknown.
-               Try asking your family, then come back and add a new entry.</p>
+
+          <h3>English name: <span id="en-name-label"></span></h3>
+          <div id="en-lookup">
+            <h4>What sources say about this name</h4>
+            <div id="en-lookup-results"><p>Looking it up&hellip;</p></div>
           </div>
+          <p>Do you know what your English name means or where it comes from?<br>
+            <label><input type="radio" name="enKnow" value="yes" checked> Yes, in my own words</label><br>
+            <label><input type="radio" name="enKnow" value="no"> No, or not sure. Use what the sources say</label>
+          </p>
+          <div id="en-know-yes">
+            <p><label>Meaning or origin <input id="enMeaningInput" type="text" size="50"></label></p>
+          </div>
+          <div id="en-know-no" hidden>
+            <p id="en-suggestion-note"></p>
+            <p><label>Meaning from the sources (you can edit this)<br>
+              <textarea id="enSuggestedMeaning" rows="3" cols="60"></textarea></label></p>
+          </div>
+          <p><label>Why was this English name chosen? (optional)<br>
+            <textarea id="enReason" rows="3" cols="60"></textarea></label></p>
         </fieldset>
 
         <!-- Step 4 -->
@@ -201,8 +243,7 @@
         <fieldset data-step="6" hidden>
           <legend>6. Privacy</legend>
           <p>How should your name appear?<br>
-            <label><input type="radio" name="privacy" value="full"> Full name</label><br>
-            <label><input type="radio" name="privacy" value="first" checked> First names only</label><br>
+            <label><input type="radio" name="privacy" value="first" checked> Show my first names</label><br>
             <label><input type="radio" name="privacy" value="anonymous"> Anonymous</label>
           </p>
           <p><label>Is a family member already in the archive? Link to their entry:
@@ -236,7 +277,7 @@
 
       <h3>How to read the lines</h3>
       <ul>
-        <li><strong>Shared root:</strong> both names grow from the family name they share.</li>
+        <li><strong>Starting point:</strong> both names start from the same point, the person.</li>
         <li><strong>Where a line starts:</strong> a name given at birth starts at the beginning; a name taken on later branches off at the year it began.</li>
         <li><strong>Color:</strong> who gave the name &mdash;
           <span style="color:#3366aa">parents</span>,
@@ -246,20 +287,41 @@
           <span style="color:#666666">someone else</span>.</li>
         <li><strong>Thickness:</strong> how often the name is used today.</li>
         <li><strong>Filled vs. outlined:</strong> a filled line is a legal name; an outlined line is unofficial.</li>
-        <li><strong>Solid, dashed, dotted (Korean name):</strong> meaning told by family, picked from suggestions, or unknown.</li>
+        <li><strong>Solid, dashed, dotted:</strong> the name's meaning is known by the person, taken from a source or guessed, or unknown.</li>
       </ul>
 
       <h3>Privacy</h3>
       <p>
-        You can show your full name, first names only, or stay anonymous. To remove an entry, contact the project.
+        The archive only collects first names. You can show them or stay anonymous. To remove an entry, contact the project.
       </p>
+
+      <h3>Sources</h3>
+      <ul>
+        <li><strong>Name Hanja, readings, and definitions:</strong>
+          <a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Han Database (Unihan)</a>,
+          Unicode 18.0.0, Unicode Consortium. The list of characters allowed in Korean names comes from its
+          kKoreanEducationHanja and kKoreanName properties; definitions are shortened from kDefinition.</li>
+        <li><strong>Korean Hanja meanings (음훈) and name etymologies:</strong>
+          <a href="https://en.wiktionary.org" target="_blank" rel="noopener">Wiktionary</a>, looked up live.
+          Text is available under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>;
+          each result links to its page.</li>
+        <li><strong>Name summaries:</strong>
+          <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a>, looked up live,
+          under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</li>
+        <li><strong>Offline backup for 20 common English names:</strong>
+          <a href="https://www.behindthename.com" target="_blank" rel="noopener">Behind the Name</a>, summarized and linked,
+          used only if the live lookup can't connect.</li>
+        <li>Meanings a person enters themselves are their own and are not checked against a source.</li>
+      </ul>
 
       <h3>Reference</h3>
       <p>Domestic Data Streamers, <em>Calling Home</em> (2025).</p>
     </section>
   </main>
 
+  <script src="hanja-names.js"></script>
   <script src="data.js"></script>
+  <script src="lookup.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

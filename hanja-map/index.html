@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shared Characters</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Shared Characters</h1>
+    <p>For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. Korean still has thousands
+       of words built from them, called <strong>Hanja</strong> in Korean (the same characters are <strong>hanzi</strong> in Chinese,
+       <strong>kanji</strong> in Japanese, and <strong>chữ Hán</strong> in Vietnamese). This map shows 35,411 of those Korean words
+       and whether the same characters also make a word in Chinese, Japanese, and Vietnamese, and what it means there.</p>
+    <p>Each dot is one Korean word. You don't need to read any of these languages: search in English, or click a dot to see
+       each word spelled out in the Latin alphabet.</p>
+  </header>
+
+  <main>
+    <section id="controls">
+      <label for="search">Search a word</label>
+      <input id="search" type="search" placeholder="English, Korean, Chinese, Japanese, or Vietnamese" autocomplete="off">
+      <button type="button" id="random">Random word</button>
+      <label><input type="checkbox" id="everyday"> Highlight everyday words</label>
+      <p id="examples">Try:
+        <button type="button" data-example="school">school</button>
+        <button type="button" data-example="promise">promise</button>
+        <button type="button" data-example="hakgyo">hakgyo</button>
+        <button type="button" data-example="學校">學校</button>
+        <button type="button" data-example="がっこう">がっこう</button>
+        <button type="button" data-example="xuexiao">xuexiao</button>
+        <button type="button" data-example="học hiệu">học hiệu</button>
+      </p>
+      <div id="results"></div>
+    </section>
+
+    <section id="map-wrap">
+      <canvas id="map" aria-label="Map of Korean words grouped by whether they are shared with Chinese, Japanese, and Vietnamese"></canvas>
+      <div id="tooltip" hidden></div>
+    </section>
+
+    <section id="detail" hidden></section>
+
+    <section id="about">
+      <h2>How to read this</h2>
+      <ul>
+        <li>Each circle is a group of Korean words, sorted by which other languages use the same characters as a word.
+            Columns go from words shared with all three languages to words shared with none.</li>
+        <li>Each circle's area is in proportion to how many words it holds.</li>
+        <li>"Not shared" means the words weren't found in the Chinese, Japanese, or Vietnamese dictionaries used here. That doesn't mean
+            Korean invented them: dictionary coverage varies, and many are rare compounds.</li>
+        <li>Vietnamese is now written in the Latin alphabet, so Vietnamese words are matched by their Sino-Vietnamese reading
+            (學校 → học hiệu). In a hand-checked sample, about 2 in 40 matches were different words that sound the same.
+            When you select a word, the site checks Wiktionary to confirm its characters.</li>
+        <li>Sharing characters doesn't mean sharing a meaning. Click a dot to compare what the word means in each language.</li>
+        <li>You can search in English; in Korean (Hangul or romanized, like <em>hakgyo</em>); in Chinese (traditional or simplified
+            characters, Mandarin pinyin without tones, like <em>xuexiao</em>, or Cantonese Jyutping, like <em>hokhaau</em>); in Japanese (kanji, kana, or romaji, like <em>gakkou</em> or <em>gakko</em>);
+            or in Vietnamese, with or without tone marks (<em>học hiệu</em> or <em>hoc hieu</em>).</li>
+        <li>Each word has a Listen button for every language, including both Mandarin and Cantonese. It uses your device's built-in voices. To add a missing language on a Mac,
+            open System Settings → Accessibility → Spoken Content → System Voice → Manage Voices. On Windows, go to
+            Settings → Time &amp; language → Speech → Add voices.</li>
+        <li>"Everyday words" are the 2,403 words here that Korea's Basic Korean Dictionary marks as beginner or intermediate vocabulary.</li>
+      </ul>
+
+      <h2>Words used on this page</h2>
+      <ul>
+        <li><strong>Hanja, hanzi, kanji, chữ Hán:</strong> the Korean, Chinese, Japanese, and Vietnamese names for Chinese characters.</li>
+        <li><strong>Mandarin and Cantonese:</strong> two major spoken varieties of Chinese that share the same written words.
+            Mandarin is the standard in mainland China and Taiwan; Cantonese is spoken in Hong Kong, Guangdong, and many overseas
+            communities. Cantonese keeps older word endings (-p, -t, -k, -m) that Mandarin lost, so it often sounds closer to Korean,
+            Vietnamese, and Japanese: 學 is <em>hak</em> in Korean, <em>học</em> in Vietnamese, <em>hok</em> in Cantonese, but <em>xué</em> in Mandarin.</li>
+        <li><strong>Pinyin and Jyutping:</strong> the standard romanizations for Mandarin and Cantonese. The numbers in Jyutping
+            (hok6) mark the tone.</li>
+        <li><strong>Sino-Vietnamese:</strong> the Vietnamese way of reading Chinese characters. Vietnam switched to a Latin-based alphabet
+            (chữ Quốc ngữ) in the 20th century, but many words still come from Chinese characters.</li>
+        <li><strong>Hangul:</strong> the Korean alphabet. Korean is usually written in Hangul today; Hanja show a word's roots.</li>
+        <li><strong>Kana:</strong> the two Japanese syllable alphabets (hiragana and katakana), used here to show how a word is read.</li>
+        <li><strong>Romanization:</strong> spelling a word in the Latin alphabet. Korean uses a simplified Revised Romanization
+            (letter by letter, so some sound changes aren't shown), Chinese uses pinyin, and Japanese uses Hepburn romaji.</li>
+        <li><strong>Traditional and simplified characters:</strong> Korea and Taiwan use older traditional forms; mainland China and,
+            for some characters, Japan use simpler modern forms (學 became 学).</li>
+      </ul>
+
+      <h2>Sources</h2>
+      <ul>
+        <li><strong>Korean:</strong> the <a href="https://krdict.korean.go.kr/" target="_blank" rel="noopener">Basic Korean Dictionary</a>
+            (한국어기초사전) by the National Institute of Korean Language, CC BY-SA 2.0 KR, using a 2019 export of its data from
+            <a href="https://github.com/spellcheck-ko/korean-dict-nikl-krdict" target="_blank" rel="noopener">korean-dict-nikl-krdict</a>.
+            It provides Hanja, English equivalents, and learner levels. Words it doesn't include come from
+            <a href="https://github.com/garfieldnate/kengdic" target="_blank" rel="noopener">kengdic</a>, an open community Korean-English
+            dictionary (MPL 2.0 or LGPL), whose Hanja spellings are less reliable.</li>
+        <li><strong>Chinese:</strong> <a href="https://cc-cedict.org/" target="_blank" rel="noopener">CC-CEDICT</a>
+            (CC BY-SA 4.0), matched by traditional characters.</li>
+        <li><strong>Japanese:</strong> <a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener">JMdict</a>,
+            property of the Electronic Dictionary Research and Development Group (CC BY-SA 4.0).</li>
+        <li><strong>Vietnamese:</strong> words and meanings from
+            <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> via
+            <a href="https://kaikki.org/dictionary/Vietnamese/" target="_blank" rel="noopener">Kaikki.org</a> and the
+            <a href="https://github.com/nguyen18/which-dialect" target="_blank" rel="noopener">which-dialect</a> project (CC BY-SA 4.0).
+            Sino-Vietnamese readings from <a href="https://github.com/ph0ngp/hanviet-pinyin-words" target="_blank" rel="noopener">hanviet-pinyin-words</a> (MIT).</li>
+        <li><strong>Cantonese:</strong> Jyutping readings from <a href="https://github.com/CanCLID/to-jyutping" target="_blank" rel="noopener">to-jyutping</a>
+            by the Cantonese Computational Linguistics Infrastructure Development Workgroup (BSD-2-Clause), shown for words shared with Chinese.</li>
+        <li><strong>Character forms:</strong> <a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Unihan</a>
+            (kJapaneseNewVariant), used to match older Hanja forms like 學 to modern Japanese forms like 学.</li>
+        <li>Meanings are shortened. Matching uses whole words written with the same characters.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="words.js"></script>
+  <script src="romanize.js"></script>
+  <script src="speech.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
