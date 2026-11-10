@@ -21,7 +21,8 @@ function createMap3D(wrap, opts) {
   try {
     const test = document.createElement("canvas");
     if (!(test.getContext("webgl2") || test.getContext("webgl"))) return null;
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // No multisample smoothing: it mostly helps the thin guide lines but costs drawing time on every frame
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: "high-performance" });
   } catch (e) { return null; }
 
   const N = opts.words.length;
@@ -68,15 +69,17 @@ function createMap3D(wrap, opts) {
 
   // ---------- Layout: a group, as layers from familiar to specialized ----------
   // Front to back: everyday words, advanced words, other two-character words, three-character words, and
-  // words of four or more characters. Layers with very few words join the next one; very large layers are split
+  // words of four or more characters, every kind with any words getting its own layer; very large layers are split
   // into parts. Each layer is a flat sheet of tiles facing the viewer, in Korean alphabetical order, and the
   // layers stand one behind another. In a group's view you scroll through them.
   const FACE = new THREE.Vector3(Math.sin(0.6), 0, Math.cos(0.6)).normalize();   // toward the viewer
   const RIGHT = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), FACE).normalize();
   const UP = new THREE.Vector3(0, 1, 0);
   const TILE = 1.3, TILE_ASPECT = 0.4;              // tile width in map units, height ÷ width
-  const CELL_W = 1.62, CELL_H = 0.82;
-  const LAYER_SPACING = 14, MIN_LAYER = 25, MAX_LAYER = 1600;
+  const CELL_W = 1.45, CELL_H = 0.68;   // a tile plus the gap around it
+  // MAX_LAYER: words per layer, small enough that a whole layer is readable on screen at once.
+  // MIN_LAYER: layers smaller than this would join the next (1 = never).
+  const LAYER_SPACING = 26, MIN_LAYER = 1, MAX_LAYER = 80;
   const layerOf = new Float32Array(N);              // which layer of its group each word is in
   const collator = window.Intl ? new Intl.Collator("ko") : null;
   const stacks = {};
@@ -122,7 +125,7 @@ function createMap3D(wrap, opts) {
       const rows = Math.ceil(n / cols);
       L.width = cols * CELL_W + CELL_W;
       L.height = rows * CELL_H + CELL_H;
-      L.center = c.clone().addScaledVector(FACE, -li * LAYER_SPACING);
+      L.center = c.clone();   // every layer is laid out here; how far back it appears depends on where you are (see relLayer)
       L.idx.forEach((i, j) => {
         const x = ((j % cols) - (cols - 1) / 2 + (rand() - 0.5) * 0.12) * CELL_W;
         const y = ((rows - 1) / 2 - Math.floor(j / cols) + (rand() - 0.5) * 0.16) * CELL_H;
@@ -173,23 +176,31 @@ function createMap3D(wrap, opts) {
     uniforms: {
       uScale: { value: 400 }, uMaxDot: { value: 14 }, uMaxTile: { value: 120 },
       uAtlas: { value: null }, uCellUV: { value: new THREE.Vector2(0, 0) }, uHasAtlas: { value: 0 },
-      uAspect: { value: TILE_ASPECT }, uLayer: { value: 0 }, uLayered: { value: 0 }
+      uAspect: { value: TILE_ASPECT }, uLayer: { value: 0 }, uLayered: { value: 0 }, uLayerCount: { value: 1 },
+      uFace: { value: FACE.clone() }, uSpacing: { value: LAYER_SPACING }, uDist: { value: 60 }
     },
     vertexShader: `
       attribute vec3 aColor; attribute float aSize; attribute float aKind; attribute vec2 aCell; attribute float aLayer;
       uniform float uScale; uniform float uMaxDot; uniform float uMaxTile; uniform float uLayer; uniform float uLayered;
+      uniform float uLayerCount; uniform vec3 uFace; uniform float uSpacing; uniform float uDist;
       varying vec3 vColor; varying float vKind; varying vec2 vCell; varying float vPx; varying float vFade;
       void main() {
         vColor = aColor; vKind = aKind; vCell = aCell;
         // In a group's view: the layer being viewed is solid, the next ones fade with distance, passed ones fade out
+        // Layers loop: after the last comes the first again. d = how many layers ahead this word's layer is.
         float fade = 1.0;
+        vec3 p = position;
         if (uLayered > 0.5 && aKind > 0.5) {
-          float d = aLayer - uLayer;
-          fade = d < 0.0 ? clamp(1.0 + d * 2.5, 0.0, 1.0) : (d > 3.6 ? 0.0 : pow(0.48, d));
+          float d = uLayerCount > 1.5 ? mod(aLayer - uLayer, uLayerCount) : 0.0;
+          if (d > uLayerCount - 1.0) d -= uLayerCount;
+          // Layers ahead wait further back, fainter with distance. The layer you're leaving keeps coming toward you
+          // (all the way to the camera by the time the next one is in focus) and fades only on the last stretch.
+          fade = d < 0.0 ? smoothstep(0.0, 0.45, 1.0 + d) : (d > 3.6 ? 0.0 : pow(0.48, d));
+          p -= uFace * (d < 0.0 ? d * uDist : d * uSpacing);
         }
         vFade = fade;
         if (aSize <= 0.0 || fade < 0.02) { gl_PointSize = 0.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }   // hidden
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
         float s = aSize * uScale / -mv.z;
         gl_PointSize = min(s, aKind > 0.5 ? uMaxTile : uMaxDot);
         vPx = gl_PointSize;
@@ -355,7 +366,7 @@ function createMap3D(wrap, opts) {
     layerLabels.forEach(el => el.remove());
     layerLabels = [];
     guide.innerHTML = "";
-    guide.hidden = !layers;
+    guide.hidden = true;   // the layer list is turned off for now (it's still built, so it can come back by showing it here)
     if (!layers) return;
     const title = document.createElement("p");
     title.textContent = "Layers";
@@ -367,7 +378,7 @@ function createMap3D(wrap, opts) {
       const name = document.createElement("span"); name.className = "name"; name.textContent = L.name;
       const count = document.createElement("span"); count.className = "count"; count.textContent = L.idx.length.toLocaleString();
       b.append(num, name, count);
-      b.addEventListener("click", () => { Object.assign(view, { panX: 0, panY: 0, zoom: 1 }); goToLayer(li, 700); });
+      b.addEventListener("click", () => { Object.assign(view, { panX: 0, panY: 0, zoom: 1 }); goToLayer(li); viewDirty = true; });
       guide.appendChild(b);
       const label = document.createElement("div");
       label.className = "map3d-layer-name";
@@ -378,7 +389,7 @@ function createMap3D(wrap, opts) {
     updateGuide();
   }
   function updateGuide() {
-    const current = Math.round(view.layer);
+    const current = currentIndex();
     Array.from(guide.querySelectorAll("button")).forEach((b, li) => b.setAttribute("aria-current", li === current ? "true" : "false"));
   }
 
@@ -424,39 +435,80 @@ function createMap3D(wrap, opts) {
   // In a group's view the camera faces the layers straight on. view.layer is how far through the layers you are
   // (1.5 = halfway between the second and third); pan and zoom are relative to the layer in front of you.
   const view = { layer: 0, zoom: 1, panX: 0, panY: 0 };
-  let viewDirty = false, layerAnim = null;
+  let viewDirty = false;
+  let targetLayer = 0;   // scrolling sets where to go; the view glides there (see the render loop)
+  const wrapIndex = k => { const n = layerCount(); return n ? ((Math.round(k) % n) + n) % n : 0; };
+  const currentIndex = () => wrapIndex(view.layer);
+  // How many layers ahead of you layer k is, looping (between -1 and the number of layers - 1)
+  function relLayer(k) {
+    const n = layerCount();
+    if (n < 2) return 0;
+    let d = (((k - view.layer) % n) + n) % n;
+    if (d > n - 1) d -= n;
+    return d;
+  }
+  // How far back a layer d layers ahead is drawn (negative: one you're leaving, on its way toward you)
+  // The gap between layers grows with the viewing distance, so it looks the same whatever the layer size
+  const spacing = () => groupFit() * 0.55;
+  const backOf = d => d < 0 ? d * groupFit() * view.zoom : d * spacing();
+  function groupFit() { return Math.max(...stackFor(mode).layers.map(fitDistance)); }
   function fitDistance(L) {
     const t = Math.tan(halfFov());
-    return Math.max(L.height / 2 / t, L.width / 2 / (t * camera.aspect)) * 1.06 + 2;
+    return Math.max(L.height / 2 / t, L.width / 2 / (t * camera.aspect)) * 1.03 + 1;
   }
   function viewPose() {
-    const layers = stackFor(mode).layers;
-    const a = Math.max(0, Math.min(layers.length - 1, Math.floor(view.layer)));
-    const b = Math.min(layers.length - 1, a + 1), f = view.layer - a;
-    const dist = (fitDistance(layers[a]) * (1 - f) + fitDistance(layers[b]) * f) * view.zoom;
-    const target = groups[mode].center.clone()
-      .addScaledVector(FACE, -view.layer * LAYER_SPACING)
-      .addScaledVector(RIGHT, view.panX).addScaledVector(UP, view.panY);
+    // Every layer is seen from the same distance (the one that fits the group's largest layer), so words keep one size
+    const dist = groupFit() * view.zoom;
+    const target = groups[mode].center.clone().addScaledVector(RIGHT, view.panX).addScaledVector(UP, view.panY);
     return { pos: target.clone().addScaledVector(FACE, dist), target };
   }
+  // Keeps the view over the layer: at full size it's centered; zoomed in, it can sit anywhere the layer still fills it
+  function clampView() {
+    const L = stackFor(mode).layers[currentIndex()];
+    const halfH = groupFit() * view.zoom * Math.tan(halfFov()), halfW = halfH * camera.aspect;   // half the area on screen
+    const roomX = Math.max(0, L.width / 2 - halfW), roomY = Math.max(0, L.height / 2 - halfH);
+    view.panX = Math.max(-roomX, Math.min(roomX, view.panX));
+    view.panY = Math.max(-roomY, Math.min(roomY, view.panY));
+  }
+  // Zooms by a factor, keeping the spot under the pointer (in screen pixels from the map's top left) where it is
+  function zoomAt(f, x, y) {
+    const before = view.zoom;
+    view.zoom = Math.max(0.05, Math.min(1, view.zoom * f));
+    const real = view.zoom / before;
+    const dist = camera.position.distanceTo(controls.target);
+    const perPx = (2 * dist * Math.tan(halfFov())) / Hpx;
+    view.panX += (x - W / 2) * perPx * (1 - real);
+    view.panY -= (y - Hpx / 2) * perPx * (1 - real);
+    clampView();
+    viewDirty = true;
+  }
   function applyView() {
+    clampView();
     const p = viewPose();
     camera.position.copy(p.pos);
     controls.target.copy(p.target);
     camera.lookAt(p.target);
     pointMat.uniforms.uLayer.value = view.layer;
+    pointMat.uniforms.uDist.value = groupFit() * view.zoom;
+    pointMat.uniforms.uSpacing.value = spacing();
     viewDirty = false;
     needs = true;
   }
   function layerCount() { return mode === null ? 0 : stackFor(mode).layers.length; }
-  function goToLayer(k, ms = 600) {
-    k = Math.max(0, Math.min(layerCount() - 1, k));
-    if (reduceMotion || !ms) { view.layer = k; viewDirty = true; return; }
-    layerAnim = { from: view.layer, to: k, t0: performance.now(), ms };
+  // Glides to layer k the short way round
+  function goToLayer(k) {
+    const n = layerCount();
+    if (!n) return;
+    let delta = ((((k - targetLayer) % n) + n) % n);
+    if (delta > n / 2) delta -= n;
+    targetLayer = Math.round(targetLayer + delta);
+    if (reduceMotion) { view.layer = targetLayer; viewDirty = true; }
   }
   function flyToView(ms = 900) {
     const p = viewPose();
     pointMat.uniforms.uLayer.value = view.layer;
+    pointMat.uniforms.uDist.value = groupFit() * view.zoom;
+    pointMat.uniforms.uSpacing.value = spacing();
     updateGuide();
     flyFrom(p.pos, p.target, ms);
   }
@@ -509,11 +561,19 @@ function createMap3D(wrap, opts) {
   let mode = null;   // null = all words (dots), otherwise the category shown as tiles
   function boundsOf(cat) {
     if (mode === cat) {
-      const L = stackFor(cat).layers, depthAll = (L.length - 1) * LAYER_SPACING;
+      const L = stackFor(cat).layers, depthAll = Math.min(L.length - 1, 3.6) * spacing();
       const w = Math.max(...L.map(l => l.width)), h = Math.max(...L.map(l => l.height));
       return [groups[cat].center.clone().addScaledVector(FACE, -depthAll / 2), Math.hypot(w, h, depthAll) / 2 + 2];
     }
     return [groups[cat].center, groups[cat].r + 1];
+  }
+  // Calls fn for each word worth working out: in the all-words view, the words of the groups on screen;
+  // in a group's view, only the layer you're on (and the next, while scrolling between them)
+  function forEachNear(fn) {
+    if (mode === null) { for (const cat of live) for (const i of members[cat]) fn(i); return; }
+    if (!live.includes(mode)) return;
+    const L = stackFor(mode).layers, a = wrapIndex(Math.floor(view.layer)), b = wrapIndex(Math.ceil(view.layer));
+    for (const k of a === b ? [a] : [a, b]) for (const i of L[k].idx) fn(i);
   }
   function project() {
     if (projected) return;
@@ -527,16 +587,18 @@ function createMap3D(wrap, opts) {
       return frustum.intersectsSphere(sphere.set(c, r));
     });
     const e = m.elements;
-    for (const cat of live) for (const i of members[cat]) {
-      const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const layered = mode !== null;
+    forEachNear(i => {
+      let x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+      if (layered) { const back = backOf(relLayer(layerOf[i])); x -= FACE.x * back; z -= FACE.z * back; }
       const w = e[3] * x + e[7] * y + e[11] * z + e[15];
-      if (w <= 0.1) { depth[i] = -1; continue; }
+      if (w <= 0.1) { depth[i] = -1; return; }
       const cx = (e[0] * x + e[4] * y + e[8] * z + e[12]) / w;
       const cy = (e[1] * x + e[5] * y + e[9] * z + e[13]) / w;
       sx[i] = (cx + 1) / 2 * W;
       sy[i] = (1 - cy) / 2 * Hpx;
       depth[i] = (cx < -1.1 || cx > 1.1 || cy < -1.1 || cy > 1.1) ? -1 : w;
-    }
+    });
     projected = true;
   }
   const pxPerUnit = d => (Hpx / 2) / Math.tan(halfFov()) / d;
@@ -545,24 +607,24 @@ function createMap3D(wrap, opts) {
   function pick(x, y) {
     project();
     let best = -1, bestScore = Infinity;
-    for (const cat of live) for (const i of members[cat]) {
+    forEachNear(i => {
       const d = depth[i];
-      if (d < 0 || !opts.pickable(i)) continue;
-      if (mode !== null && Math.abs(layerOf[i] - view.layer) > 0.5) continue;
+      if (d < 0 || !opts.pickable(i)) return;
+      if (mode !== null && Math.abs(relLayer(layerOf[i])) > 0.5) return;
       const dx = sx[i] - x, dy = sy[i] - y;
       let score;
       if (kinds[i] > 0.5) {   // a tile: inside its rectangle, nearest to the camera wins
         const w = Math.min(TILE * pxPerUnit(d), maxTileCss()), h = w * TILE_ASPECT;
-        if (Math.abs(dx) > Math.max(w / 2, 5) || Math.abs(dy) > Math.max(h / 2, 4)) continue;
+        if (Math.abs(dx) > Math.max(w / 2, 5) || Math.abs(dy) > Math.max(h / 2, 4)) return;
         score = d;
       } else {                // a dot: nearest to the pointer, then to the camera
         const r = Math.max(7, Math.min(10, DOT * pxPerUnit(d) * 0.6) + 3);
         const dist2 = dx * dx + dy * dy;
-        if (dist2 > r * r) continue;
+        if (dist2 > r * r) return;
         score = Math.sqrt(dist2) * 10 + d * 0.02;
       }
       if (score < bestScore) { bestScore = score; best = i; }
-    }
+    });
     return best;
   }
 
@@ -709,25 +771,24 @@ function createMap3D(wrap, opts) {
         }
       });
     } else {
-      // Layer names float above each visible layer, fading like the layer itself
+      // Only the layer in focus shows its name; it fades in as the layer settles and out as you move on
       const L = stackFor(mode).layers;
       layerLabels.forEach((el, li) => {
-        const d = li - view.layer;
-        const fade = d < 0 ? Math.max(0, 1 + d * 2.5) : d > 3.6 ? 0 : Math.pow(0.48, d);
-        if (fade < 0.05) { el.style.display = "none"; return; }
-        place(el, L[li].center.clone().addScaledVector(UP, L[li].height / 2 + 0.2), false);
-        el.style.opacity = fade.toFixed(2);
+        const d = relLayer(li), show = Math.max(0, 1 - Math.abs(d) / 0.12);
+        if (show <= 0) { el.style.display = "none"; el.style.opacity = "0"; return; }
+        place(el, L[li].center.clone().addScaledVector(FACE, -backOf(d)).addScaledVector(UP, L[li].height / 2 + 0.2), false);
+        el.style.opacity = show.toFixed(2);
       });
       // A group's tiles: once a tile on the current layer is big enough on screen, it switches to crisp page text
       const chosen = [];
-      if (live.includes(mode)) {
-        for (const i of members[mode]) {
+      const settled = !anim && Math.abs(targetLayer - view.layer) < 0.002 && Math.abs(view.layer - Math.round(view.layer)) < 0.02;
+      if (settled && live.includes(mode)) {
+        const L = stackFor(mode).layers[currentIndex()];
+        for (const i of L.idx) {
           const d = depth[i];
-          if (d < 0 || Math.abs(layerOf[i] - view.layer) > 0.35) continue;
-          if (TILE * pxPerUnit(d) >= 64) chosen.push(i);
+          if (d > 0 && TILE * pxPerUnit(d) >= 64) chosen.push(i);
         }
-        chosen.sort((a, b) => depth[a] - depth[b]);
-        chosen.length = Math.min(chosen.length, 260);
+        chosen.length = Math.min(chosen.length, 180);
       }
       showWords(chosen, {
         kind: "box",
@@ -735,7 +796,7 @@ function createMap3D(wrap, opts) {
           const w = TILE * pxPerUnit(depth[i]), h = w * TILE_ASPECT;
           el.style.width = w.toFixed(1) + "px";
           el.style.height = h.toFixed(1) + "px";
-          el.style.fontSize = (h * 0.34).toFixed(1) + "px";
+          el.style.fontSize = (h * 0.37).toFixed(1) + "px";
           el.style.opacity = "";
           el.style.zIndex = String(10000 - Math.round(depth[i] * 20));   // nearer tiles on top
           el.style.transform = `translate(${sx[i]}px, ${sy[i]}px) translate(-50%, -50%)`;
@@ -754,21 +815,27 @@ function createMap3D(wrap, opts) {
     }
     const sliding = morphs.length > 0;
     if (sliding) stepMorphs(now);
-    if (selected >= 0 && (sliding || needs)) {
-      selGeom.attributes.position.array.set([pos[selected * 3], pos[selected * 3 + 1], pos[selected * 3 + 2]]);
-      selGeom.attributes.position.needsUpdate = true;
-    }
+    const dt = Math.min(0.1, (now - (frame.last || now)) / 1000);
+    frame.last = now;
     let moved = false;
     if (mode === null) moved = controls.update();
     else if (!anim) {
-      if (layerAnim) {
-        const k = Math.min(1, (now - layerAnim.t0) / layerAnim.ms);
-        const e = 1 - Math.pow(1 - k, 3);
-        view.layer = layerAnim.from + (layerAnim.to - layerAnim.from) * e;
-        if (k >= 1) layerAnim = null;
+      const gap = targetLayer - view.layer;
+      if (Math.abs(gap) > 0.0005) {
+        view.layer += gap * Math.min(1, dt * 9);                 // ease toward the target: smooth, never overshooting
+        if (Math.abs(targetLayer - view.layer) < 0.0005) {
+          view.layer = targetLayer;
+          setTimeout(() => { projected = false; placeLabels(); }, 0);   // settled: show crisp text right away
+        }
         viewDirty = true;
       }
       if (viewDirty) { applyView(); moved = true; updateGuide(); }
+    }
+    if (selected >= 0 && (sliding || needs || moved)) {
+      let x = pos[selected * 3], y = pos[selected * 3 + 1], z = pos[selected * 3 + 2];
+      if (mode !== null && kinds[selected] > 0.5) { const back = backOf(relLayer(layerOf[selected])); x -= FACE.x * back; z -= FACE.z * back; }
+      selGeom.attributes.position.array.set([x, y, z]);
+      selGeom.attributes.position.needsUpdate = true;
     }
     if (moved || needs || anim || sliding) {
       renderer.render(scene, camera);
@@ -786,7 +853,7 @@ function createMap3D(wrap, opts) {
     const dpr = renderer.getPixelRatio();
     pointMat.uniforms.uScale.value = (Hpx * dpr) / 2;
     pointMat.uniforms.uMaxDot.value = 14 * dpr;
-    pointMat.uniforms.uMaxTile.value = Math.min(maxPoint, 140 * dpr);
+    pointMat.uniforms.uMaxTile.value = Math.min(maxPoint, 400 * dpr);
     camera.aspect = W / Hpx;
     camera.updateProjectionMatrix();
     needs = true;
@@ -799,16 +866,8 @@ function createMap3D(wrap, opts) {
   const canvasEl = renderer.domElement;
   let down = null;
   const local = e => { const r = canvasEl.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  let lastDrag = null;
   canvasEl.addEventListener("pointermove", e => {
-    if (down && e.buttons) {
-      opts.onHover(-1);
-      if (mode !== null && lastDrag) {
-        panBy(e.clientX - lastDrag.x, e.clientY - lastDrag.y);
-        lastDrag = { x: e.clientX, y: e.clientY };
-      }
-      return;
-    }
+    if (down && e.buttons) { opts.onHover(-1); return; }
     const [x, y] = local(e);
     const i = pick(x, y);
     canvasEl.style.cursor = i >= 0 ? "pointer" : "grab";
@@ -817,7 +876,6 @@ function createMap3D(wrap, opts) {
   canvasEl.addEventListener("pointerleave", () => opts.onHover(-1));
   canvasEl.addEventListener("pointerdown", e => {
     down = { x: e.clientX, y: e.clientY, t: performance.now() };
-    lastDrag = { x: e.clientX, y: e.clientY };
     controls.autoRotate = false;
   });
   canvasEl.addEventListener("pointerup", e => {
@@ -863,16 +921,7 @@ function createMap3D(wrap, opts) {
     const d = Math.min(controls.maxDistance, Math.max(controls.minDistance, offset.length() * Math.exp(amount)));
     camera.position.copy(controls.target).add(offset.setLength(d));
   }
-  // In a group's view: moves across the current layer by a number of screen pixels
-  function panBy(dxPx, dyPx) {
-    const dist = camera.position.distanceTo(controls.target);
-    const perPx = (2 * dist * Math.tan(halfFov())) / Hpx;
-    const L = stackFor(mode).layers[Math.round(Math.max(0, Math.min(layerCount() - 1, view.layer)))];
-    view.panX = Math.max(-L.width / 2, Math.min(L.width / 2, view.panX - dxPx * perPx));
-    view.panY = Math.max(-L.height / 2, Math.min(L.height / 2, view.panY + dyPx * perPx));
-    viewDirty = true;
-  }
-  let snapTimer = 0;
+  let snapTimer = 0, scrollDir = 1;
   wrap.addEventListener("wheel", e => {
     if (e.target.closest && (e.target.closest(".map-tools") || e.target.closest(".map3d-guide"))) return;
     e.preventDefault();
@@ -882,14 +931,23 @@ function createMap3D(wrap, opts) {
     const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? Hpx : 1;
     const dx = e.deltaX * scale, dy = e.deltaY * scale;
     if (mode !== null) {
-      layerAnim = null;
-      if (e.ctrlKey) view.zoom = Math.max(0.05, Math.min(2.5, view.zoom * Math.exp(dy * 0.012)));   // pinch zooms
-      else if (e.shiftKey) panBy(-dx, -dy);                                                         // Shift + swipe moves
-      else {
-        view.layer = Math.max(0, Math.min(layerCount() - 1, view.layer + dy * 0.0035));           // scrolling moves through layers
-        if (dx) panBy(-dx, 0);                                                                       // sideways swipe moves across
+      if (e.ctrlKey) {                                                                  // pinch zooms toward the pointer
+        const r = wrap.getBoundingClientRect();
+        zoomAt(Math.exp(dy * 0.012), e.clientX - r.left, e.clientY - r.top);
+      } else if (dy) {                                                                  // scrolling moves through layers (they loop)
+        const notch = e.deltaX === 0 && (e.deltaMode === 1 ||
+          (e.wheelDeltaY !== undefined && e.wheelDeltaY !== 0 && Math.abs(e.wheelDeltaY) % 120 === 0));
+        scrollDir = Math.sign(dy);
+        if (notch) targetLayer = Math.round(targetLayer) + scrollDir;                   // a mouse wheel: one layer per notch
+        else targetLayer += dy * 0.003;
         clearTimeout(snapTimer);
-        snapTimer = setTimeout(() => goToLayer(Math.round(view.layer), 350), 160);                 // settle on the nearest layer
+        snapTimer = setTimeout(() => {                                                  // stopped: settle on the next layer
+          const fl = Math.floor(targetLayer), fr = targetLayer - fl;                   // in the direction you were going
+          targetLayer = scrollDir > 0 ? (fr > 0.08 ? fl + 1 : fl) : (fr < 0.92 ? fl : fl + 1);
+          if (reduceMotion) view.layer = targetLayer;
+          viewDirty = true;
+        }, 140);
+        if (reduceMotion) view.layer = targetLayer;
       }
       viewDirty = true;
       return;
@@ -918,7 +976,8 @@ function createMap3D(wrap, opts) {
       slide(members[mode], stack.to);                                    // the new group opens into layers
       buildAtlas(mode);
       Object.assign(view, { layer: 0, zoom: 1, panX: 0, panY: 0 });
-      layerAnim = null;
+      targetLayer = 0;
+      pointMat.uniforms.uLayerCount.value = stack.layers.length;
       buildGuide(stack.layers);
       selMat.map = ringTex; selMat.size = TILE * 1.25;
     } else {
@@ -931,7 +990,7 @@ function createMap3D(wrap, opts) {
     const hint = wrap.querySelector(".map-hint");
     if (hint) hint.textContent = mode === null
       ? "Trackpad: swipe with two fingers to turn, hold Shift to move, pinch to zoom · Mouse: drag to turn, scroll to zoom, right-drag to move"
-      : "Scroll to move through the layers · Drag or swipe sideways to move across · Pinch to zoom";
+      : "Scroll to move through the layers · Pinch to zoom in on part of a layer";
   }
 
   // ---------- What the page calls ----------
@@ -963,15 +1022,16 @@ function createMap3D(wrap, opts) {
           // Go to the word's layer, centered on it, close enough to read
           const li = layerOf[selected], L = stackFor(mode).layers[li], p = finalPos(selected);
           const off = p.clone().sub(L.center);
-          Object.assign(view, { layer: li, panX: off.dot(RIGHT), panY: off.y, zoom: Math.min(1, 16 / fitDistance(L)) });
-          layerAnim = null;
+          goToLayer(li);
+          view.layer = targetLayer;
+          Object.assign(view, { panX: off.dot(RIGHT), panY: off.y, zoom: Math.min(1, 16 / groupFit()) });
           flyToView(800);
         } else flyTo(finalPos(selected), 13);
       }
       needs = true;
     },
     zoom(f) {
-      if (mode !== null) { view.zoom = Math.max(0.05, Math.min(2.5, view.zoom * f)); viewDirty = true; return; }
+      if (mode !== null) { zoomAt(f, W / 2, Hpx / 2); return; }
       const d = camera.position.distanceTo(controls.target);
       flyTo(controls.target.clone(), Math.min(controls.maxDistance, Math.max(controls.minDistance, d * f)), 350);
     },

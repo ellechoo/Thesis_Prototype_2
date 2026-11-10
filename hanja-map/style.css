@@ -208,6 +208,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .map3d-guide .num { font-weight: 600; }
 .map3d-guide .count { opacity: 0.65; font-variant-numeric: tabular-nums; }
 .map3d-layer-name {
+  transition: opacity 0.25s;
   font-size: 12px; font-weight: 600; white-space: nowrap; color: #000;
   background: rgba(255, 255, 255, 0.85); padding: 1px 6px;
 }
