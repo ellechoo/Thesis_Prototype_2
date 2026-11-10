@@ -212,6 +212,9 @@ function startMap3D() {
     countOf: cat => COUNTS[cat] || 0,
     langName: c => LANG_NAME[c],
     labelOf: i => [WORDS[i][HANGUL] + " " + WORDS[i][HANJA], englishShort(WORDS[i][KO_MEANING])],
+    hangulOf: i => WORDS[i][HANGUL],
+    hanjaOf: i => WORDS[i][HANJA],
+    levelOf: i => WORDS[i][LEVEL],
     look: lookOf,
     pickable: i => lookOf(i) > 0,
     currentGroup: () => state.group,
@@ -220,12 +223,12 @@ function startMap3D() {
     onOpen: i => openWord(i),
     onGroup: cat => setGroup(cat)
   });
-  if (!map3d) return;
+  if (!map3d) { $("map-note").hidden = false; return; }
   $("map").hidden = true;
   $("map-wrap").classList.add("is-3d");
   $("zoom-in").addEventListener("click", () => map3d.zoom(0.6));
   $("zoom-out").addEventListener("click", () => map3d.zoom(1.6));
-  $("reset-view").addEventListener("click", () => { if (state.group !== null) setGroup(null); else map3d.home(); });
+  $("reset-view").addEventListener("click", () => map3d.home());
 }
 
 // ---------- Map layout ----------
@@ -564,7 +567,7 @@ function renderIntro() {
   const box = el("div", "intro");
   box.appendChild(el("h2", "", "Korean words, shared across Asia"));
   box.appendChild(el("p", "", "For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. " +
-    "Each dot or card is a Korean word built from those characters, called Hanja. Select one to see whether the same characters " +
+    "Each dot, tile, or card is a Korean word built from those characters, called Hanja. Select one to see whether the same characters " +
     "are also a word in Chinese, Japanese, and Vietnamese, what they mean there, and how they sound."));
   box.appendChild(el("p", "", "You don't need to read any of these languages. Search in English, or try:"));
   const ex = el("div", "examples");
@@ -576,8 +579,8 @@ function renderIntro() {
   });
   box.appendChild(ex);
   box.appendChild(el("p", "legend", "Map: each dot is a word. Clouds group the words by which languages share them, sized by word count; " +
-    "the higher a cloud, the more languages share it. Drag to turn the map, scroll or pinch to zoom, and right-drag or Shift-drag to move. " +
-    "Zoom in close and the dots turn into words you can read and click. To see one group, click its name or switch languages with the buttons above. " +
+    "the higher a cloud, the more languages share it. On a trackpad, swipe with two fingers to turn the map, hold Shift to move it, and pinch to zoom; with a mouse, drag to turn and scroll to zoom. " +
+    "Zoom in close to read the nearest words. Open one group (click its name, or switch languages above) to see its words as tiles in layers, from everyday words to specialized ones; scroll to move through the layers. " +
     "List: the same words as cards, everyday words first. Double-click any word to open its own page."));
   const about = el("button", "", "More about this site");
   about.type = "button";

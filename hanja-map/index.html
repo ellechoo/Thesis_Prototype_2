@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hanja Roots</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261110i">
 </head>
 <body>
   <header class="topbar">
@@ -38,7 +38,8 @@
           <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
           <button type="button" id="reset-view">Reset view</button>
         </div>
-        <p class="map-hint">Drag to turn · Scroll or pinch to zoom · Right-drag or Shift-drag to move · Zoom in to read words</p>
+        <p id="map-note" hidden>Your browser has 3D graphics turned off, so you're seeing the flat version of the map. Everything else works the same.</p>
+        <p class="map-hint">Trackpad: swipe with two fingers to turn, hold Shift to move, pinch to zoom · Mouse: drag to turn, scroll to zoom, right-drag to move</p>
       </div>
       <div id="list-wrap" hidden>
         <div id="list"></div>
@@ -69,9 +70,14 @@
       <li>The <strong>Map</strong> is a 3D space where each dot is one Korean word. Chinese, Japanese, and Vietnamese sit at the corners
           of a triangle on the ground, and each group of words is a cloud placed over the languages that share it. The higher a cloud,
           the more languages share its words: "Not shared" sits at the bottom, words shared with all three at the top.</li>
-      <li>Each cloud's size is in proportion to how many words it holds. Drag to turn the map, scroll or pinch to zoom, and right-drag
-          or Shift-drag to move around. Zoom in close and the dots turn into words you can read and click. Click a group's name
-          to fly to it.</li>
+      <li>Each cloud's size is in proportion to how many words it holds. On a trackpad, swipe with two fingers to turn the map, hold Shift
+          while swiping to move it, and pinch to zoom. With a mouse, drag to turn, scroll to zoom, and right-drag or Shift-drag to move. Zoom in close to read the nearest words. Click a group's name, or choose a combination with the
+          language buttons, and only that group is shown, as layers of word tiles (Hangul above, Hanja below) that run
+          from familiar to specialized: everyday words first, then advanced words, other two-character words,
+          three-character words, and finally words of four or more characters. Very large layers are split into parts,
+          and within a layer words are in Korean alphabetical order. Scroll to move through the layers; the next few
+          stay visible in the distance, fainter the further away they are. Drag or swipe sideways to move across a layer,
+          pinch to zoom, or click a layer in the list on the right to jump to it.</li>
       <li>Use the language buttons above the map to choose a combination. Korean is always on; switch Chinese, Japanese, and Vietnamese on or off
           to see the words shared by exactly those languages. For example, Korean + Chinese + Japanese shows words that are a word in
           Chinese and Japanese but not in Vietnamese. With only Korean on, you see the words not shared with any of them. "All" shows everything.</li>
@@ -165,14 +171,14 @@
   </div>
 
 
-  <script src="lib/three.min.js"></script>
-  <script src="lib/OrbitControls.js"></script>
-  <script src="words.js"></script>
-  <script src="characters.js"></script>
-  <script src="romanize.js"></script>
-  <script src="recordings.js"></script>
-  <script src="speech.js"></script>
-  <script src="map3d.js"></script>
-  <script src="script.js"></script>
+  <script src="lib/three.min.js?v=20261110i"></script>
+  <script src="lib/OrbitControls.js?v=20261110i"></script>
+  <script src="words.js?v=20261110i"></script>
+  <script src="characters.js?v=20261110i"></script>
+  <script src="romanize.js?v=20261110i"></script>
+  <script src="recordings.js?v=20261110i"></script>
+  <script src="speech.js?v=20261110i"></script>
+  <script src="map3d.js?v=20261110i"></script>
+  <script src="script.js?v=20261110i"></script>
 </body>
 </html>
