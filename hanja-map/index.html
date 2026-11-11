@@ -4,32 +4,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hanja Roots</title>
-  <link rel="stylesheet" href="style.css?v=20261111h">
+  <link rel="stylesheet" href="style.css?v=20261111x">
 </head>
 <body>
   <header class="topbar">
-    <h1>Hanja Roots</h1>
+    <h1><button type="button" id="home" title="Back to the start">Hanja Roots</button></h1>
     <div class="search-wrap">
-      <label for="search" class="visually-hidden">Search a word</label>
-      <input id="search" type="search" placeholder="Search any language, or English" autocomplete="off"
+      <label for="search" class="visually-hidden">Search a word in any language, or in English</label>
+      <input id="search" type="search" placeholder="Search" title="Search in any language, or in English" autocomplete="off"
              aria-controls="suggestions" aria-expanded="false">
       <div id="suggestions" role="listbox" hidden></div>
     </div>
+    <button type="button" id="random" class="random-link" title="Open a random word (from the words shown)">Random word <span aria-hidden="true">↻</span></button>
     <div class="view-switch" role="group" aria-label="View">
       <button type="button" data-view="map" aria-pressed="false">Map</button>
       <button type="button" data-view="list" aria-pressed="true">List</button>
-    </div>
-    <div id="groups" aria-label="Filter by language"></div>
-    <div class="extras">
-      <button type="button" id="everyday" aria-pressed="false" title="Highlight (in the map) or show only (in the list) the 2,403 words Korean learners meet first">Everyday</button>
-      <button type="button" id="random">Random</button>
     </div>
     <button type="button" id="about-open">About</button>
   </header>
 
   <main class="layout">
     <section id="view">
-      <p id="status" aria-live="polite"></p>
+      <div class="filter-row">
+        <div id="groups"></div>
+        <span class="filter-divider" aria-hidden="true"></span>
+        <button type="button" id="everyday" class="switch" role="switch" aria-checked="false"
+                title="Show only (in the list) or highlight (in the map) the 2,183 words Korean learners meet first"><span class="switch-track" aria-hidden="true"></span>Everyday words</button>
+        <p id="status" aria-live="polite"></p>
+      </div>
       <div id="map-wrap" hidden>
         <canvas id="map" aria-label="Map of Korean words grouped by whether they are shared with Chinese, Japanese, and Vietnamese"></canvas>
         <div id="tooltip" hidden></div>
@@ -52,8 +54,7 @@
 
   <div id="word-page" hidden>
     <nav class="page-bar" aria-label="Page">
-      <button type="button" id="back">← Back to gallery</button>
-      <span class="page-site">Hanja Roots</span>
+      <button type="button" id="back" class="page-site" aria-label="Hanja Roots, back to the gallery" title="Back to the gallery">Hanja Roots</button>
       <button type="button" id="about-nav">About</button>
     </nav>
     <main id="word-content"></main>
@@ -62,14 +63,32 @@
 
     <p>For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. Korean still has thousands
        of words built from them, called <strong>Hanja</strong> in Korean (the same characters are <strong>hanzi</strong> in Chinese,
-       <strong>kanji</strong> in Japanese, and <strong>chữ Hán</strong> in Vietnamese). This site shows 35,411 of those Korean words
-       and whether the same characters also make a word in Chinese, Japanese, and Vietnamese, and what it means there.</p>
+       <strong>kanji</strong> in Japanese, and <strong>chữ Hán</strong> in Vietnamese). This site shows 21,838 of those Korean words:
+       the ones whose characters also make a word in Chinese, Japanese, or Vietnamese, with what the word means and how it sounds in each.</p>
+
+    <h3>Which words are included</h3>
+    <p>The Korean dictionaries used here list 35,411 words written with Hanja. Each was checked against Chinese, Japanese, and
+       Vietnamese dictionaries to see whether the same characters are a word there too.</p>
+    <table class="coverage">
+      <thead><tr><th scope="col">Korean Hanja words that are also a word in…</th><th scope="col">Words</th><th scope="col">Share</th></tr></thead>
+      <tbody>
+        <tr><td>Chinese</td><td>11,828</td><td>33.4%</td></tr>
+        <tr><td>Japanese</td><td>20,262</td><td>57.2%</td></tr>
+        <tr><td>Vietnamese</td><td>3,964</td><td>11.2%</td></tr>
+        <tr><td>All three</td><td>3,350</td><td>9.5%</td></tr>
+        <tr class="total"><td>At least one (shown on this site)</td><td>21,838</td><td>61.7%</td></tr>
+        <tr><td>None of them (left out)</td><td>13,573</td><td>38.3%</td></tr>
+      </tbody>
+    </table>
+    <p>The more common a word, the more likely it's shared: 2,183 of the 2,403 everyday words (90.8%) are, and 15,632 of the 20,091
+       words in the Basic Korean Dictionary (77.8%), but only 6,206 of the 15,320 rarer words found only in kengdic (40.5%).
+       A word left out wasn't necessarily invented in Korea: dictionary coverage varies, and many are rare compounds.</p>
 
     <h3>How to read this</h3>
     <ul>
       <li>The <strong>Map</strong> is a 3D space where each dot is one Korean word. Chinese, Japanese, and Vietnamese sit at the corners
           of a triangle on the ground, and each group of words is a cloud placed over the languages that share it. The higher a cloud,
-          the more languages share its words: "Not shared" sits at the bottom, words shared with all three at the top.</li>
+          the more languages share its words: words shared with one language sit lowest, words shared with all three at the top.</li>
       <li>Each cloud's size is in proportion to how many words it holds. On a trackpad, swipe with two fingers to turn the map, hold Shift
           while swiping to move it, and pinch to zoom. With a mouse, drag to turn, scroll to zoom, and right-drag or Shift-drag to move. Zoom in close to read the nearest words. Click a group's name, or choose a combination with the
           language buttons, and only that group is shown, as layers of word tiles (Hangul above, Hanja below) that run
@@ -78,22 +97,20 @@
           wait in the distance, fainter the further away they are, the one you're leaving comes toward you and fades as it passes, and
           after the last layer the first comes round again. Pinch to zoom in on part of a layer (it zooms toward
           your pointer).</li>
-      <li>Use the language buttons above the map to choose a combination. Korean is always on; switch Chinese, Japanese, and Vietnamese on or off
+      <li>Use the language buttons at the top to choose a combination. Every word is Korean; switch Chinese, Japanese, and Vietnamese on or off
           to see the words shared by exactly those languages. For example, Korean + Chinese + Japanese shows words that are a word in
-          Chinese and Japanese but not in Vietnamese. With only Korean on, you see the words not shared with any of them. "All" shows everything.</li>
+          Chinese and Japanese but not in Vietnamese. With none switched on, you see every word.</li>
       <li>Click a word to see it in the side panel. Double-click it, or choose <strong>Open full page</strong>, to give the word a page of its own:
           how it sounds in each language, what it means in each, and the characters it's built from, with other words that use them.
           Each word page has its own link, so you can bookmark or share it.</li>
-      <li>The <strong>List</strong> shows the same words as cards, with everyday words first. The ZH, JA, and VI tags show which
-          languages share each word.</li>
-      <li>"Not shared" means the words weren't found in the Chinese, Japanese, or Vietnamese dictionaries used here. That doesn't mean
-          Korean invented them: dictionary coverage varies, and many are rare compounds.</li>
+      <li>The <strong>List</strong> shows the same words as cards, with everyday words first. The coloured dots show which
+          languages share each word: <span class="lang-dot lang-z"></span> Chinese, <span class="lang-dot lang-j"></span> Japanese, and
+          <span class="lang-dot lang-v"></span> Vietnamese, the same colours as the language buttons.</li>
       <li>Sharing characters doesn't mean sharing a meaning. Select a word to compare what it means in each language.</li>
-      <li>About 10,000 rarer words have no English meaning in the Korean dictionaries used here. For those, the site shows what
-          the same word means in Japanese, Chinese, or Vietnamese, marked ≈ (for example "≈ temporary house"), or, if no other
-          language has it, the meanings of its characters one by one in parentheses (for example "(house + plan + nature)"). Both
-          are hints rather than definitions: meanings can differ between languages, and a word is often more than its characters.</li>
-      <li>"Everyday words" are the 2,403 words here that Korea's Basic Korean Dictionary marks as beginner or intermediate vocabulary.</li>
+      <li>About 2,900 rarer words have no English meaning in the Korean dictionaries used here. For those, the site shows what
+          the same word means in Japanese, Chinese, or Vietnamese, marked ≈ (for example "≈ temporary house"). That's a hint rather
+          than a definition: meanings can differ between languages.</li>
+      <li>"Everyday words" are the 2,183 words here that Korea's Basic Korean Dictionary marks as beginner or intermediate vocabulary.</li>
       <li>Vietnamese is now written in the Latin alphabet, so Vietnamese words are matched by their Sino-Vietnamese reading
           (學校 → học hiệu). In a hand-checked sample, about 2 in 40 matches were different words that sound the same.
           When you select a word, the site checks Wiktionary to confirm its characters.</li>
@@ -177,14 +194,14 @@
   </div>
 
 
-  <script src="lib/three.min.js?v=20261111h"></script>
-  <script src="lib/OrbitControls.js?v=20261111h"></script>
-  <script src="words.js?v=20261111h"></script>
-  <script src="characters.js?v=20261111h"></script>
-  <script src="romanize.js?v=20261111h"></script>
-  <script src="recordings.js?v=20261111h"></script>
-  <script src="speech.js?v=20261111h"></script>
-  <script src="map3d.js?v=20261111h"></script>
-  <script src="script.js?v=20261111h"></script>
+  <script src="lib/three.min.js?v=20261111x"></script>
+  <script src="lib/OrbitControls.js?v=20261111x"></script>
+  <script src="words.js?v=20261111x"></script>
+  <script src="characters.js?v=20261111x"></script>
+  <script src="romanize.js?v=20261111x"></script>
+  <script src="recordings.js?v=20261111x"></script>
+  <script src="speech.js?v=20261111x"></script>
+  <script src="map3d.js?v=20261111x"></script>
+  <script src="script.js?v=20261111x"></script>
 </body>
 </html>

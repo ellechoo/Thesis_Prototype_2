@@ -2,7 +2,7 @@
 //
 // Layout: Chinese, Japanese, and Vietnamese sit at the corners of a triangle on the ground. Each group of
 // words is a cloud (a sphere whose volume is in proportion to its word count) placed over the languages that
-// share it, at a height set by how many of them share it: "Not shared" at the bottom, "All three" at the top.
+// share it, at a height set by how many of them share it: one language lowest, "All three" at the top.
 //
 // Two ways of showing words:
 //  - All words: every word is a dot. Close up, the nearest dots get a small label beside them.

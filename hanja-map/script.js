@@ -32,10 +32,10 @@ const LANG_NAME = { z: "Chinese", j: "Japanese", v: "Vietnamese" };
 const COLUMNS = [
   { title: "Shared with all three", groups: ["zjv"] },
   { title: "Shared with two", groups: ["zj", "jv", "zv"] },
-  { title: "Shared with one", groups: ["j", "z", "v"] },
-  { title: "Not shared", groups: [""] }
+  { title: "Shared with one", groups: ["j", "z", "v"] }
 ];
-const GROUP_ORDER = ["zjv", "zj", "jv", "zv", "j", "z", "v", ""];
+// Korean words not found in any of the three are left out of the site (kept in backup/words-unshared.js)
+const GROUP_ORDER = ["zjv", "zj", "jv", "zv", "j", "z", "v"];
 
 function groupName(cat) {
   if (!cat) return "Not shared";
@@ -60,7 +60,7 @@ const tooltip = $("tooltip");
 
 const state = {
   view: "list",      // "map" or "list" (the list is shown first, for now)
-  group: "zjv",      // null = all groups, otherwise a category ("zjv", "", ...); starts with every language switched on
+  group: null,       // null = every word (no language buttons on), otherwise a category ("zjv", "zj", ...)
   query: "",
   matches: null,     // array of word indexes matching the search, best first; null = no search
   matchSet: null,
@@ -80,19 +80,26 @@ function visibleWords() {
     (!state.everyday || isEveryday(WORDS[i])));
 }
 
+// A short line beside the filters: "480 everyday words shared only with Japanese"
+function shortWhere(cat) {
+  if (cat === "zjv") return "shared with all three";
+  return "shared only with " + joinList(Array.from(cat).map(c => LANG_NAME[c]));
+}
+
 function updateStatus() {
-  const parts = [];
-  const where = state.group === null ? "all words" : comboSentence(state.group);
+  const where = state.group === null ? "" : " " + shortWhere(state.group);
   const listOnly = state.everyday && state.view === "list";   // the list shows only everyday words
+  const inGroup = i => state.group === null || WORDS[i][CAT] === state.group;
+  let text;
   if (state.matches) {
-    const n = listOnly ? visibleWords().length : state.matches.filter(i => state.group === null || WORDS[i][CAT] === state.group).length;
-    parts.push(n.toLocaleString() + (listOnly ? " everyday" : "") + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "”" + (state.group === null ? "" : ", among words " + where));
+    const n = listOnly ? visibleWords().length : state.matches.filter(inGroup).length;
+    text = n.toLocaleString() + (listOnly ? " everyday" : "") + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "”" + where;
   } else {
     const n = listOnly ? visibleWords().length : state.group === null ? WORDS.length : (COUNTS[state.group] || 0);
-    parts.push(n.toLocaleString() + (listOnly ? " everyday" : "") + " Korean words" + (state.group === null ? (listOnly ? "" : ", grouped by which other languages share them") : " " + where));
+    text = n.toLocaleString() + (listOnly ? " everyday" : "") + (n === 1 ? " word" : " words") + where;
   }
-  if (state.everyday && !listOnly) parts.push("everyday words highlighted");
-  $("status").textContent = parts.join(" · ");
+  if (state.everyday && !listOnly) text += ", everyday ones highlighted";
+  $("status").textContent = text;
 }
 
 // ---------- Group buttons ----------
@@ -111,49 +118,74 @@ function comboLabel(cat) {
   return cat ? "Korean + " + Array.from(cat).map(c => LANG_NAME[c]).join(" + ") : "Korean only";
 }
 
+// Korean is plain text (every word here is Korean), followed by a toggle for each other language.
+// With none switched on, every word is shown.
 function renderGroupButtons() {
   const box = $("groups");
   box.innerHTML = "";
-  const all = el("button", "all-btn", "All");
-  all.type = "button";
-  all.title = "Show all " + WORDS.length.toLocaleString() + " words";
-  all.setAttribute("aria-pressed", String(state.group === null));
-  all.addEventListener("click", () => setGroup(null));
-  box.appendChild(all);
-
-  const langs = el("div", "lang-toggles");
-  langs.setAttribute("role", "group");
-  langs.setAttribute("aria-label", "Languages that share the word");
-  langs.appendChild(el("span", "toggles-label", "Shared by"));
-  const ko = el("button", "lang-toggle locked", "Korean");
-  ko.type = "button";
-  ko.setAttribute("aria-pressed", "true");
-  ko.setAttribute("aria-disabled", "true");
-  ko.title = "Every word here is Korean, so Korean is always on";
-  langs.appendChild(ko);
+  box.setAttribute("role", "group");
+  box.setAttribute("aria-label", "Languages that share the word");
+  box.appendChild(el("span", "ko-fixed", "Korean"));
+  box.appendChild(el("span", "ko-plus", "+"));
   ["z", "j", "v"].forEach(c => {
     const on = state.group !== null && state.group.includes(c);
-    const b = el("button", "lang-toggle", LANG_NAME[c]);
+    const b = el("button", "lang-toggle lang-" + c, LANG_NAME[c]);
     b.type = "button";
     b.setAttribute("aria-pressed", String(on));
-    b.addEventListener("click", () => {
-      const now = new Set(state.group === null ? [] : Array.from(state.group));
-      if (now.has(c)) now.delete(c); else now.add(c);
-      setGroup(["z", "j", "v"].filter(x => now.has(x)).join(""));
-    });
-    langs.appendChild(b);
+    b.dataset.lang = c;
+    // Keyboard (Enter/Space) toggles one language; pointer presses are handled by the swipe below
+    b.addEventListener("click", e => { if (e.detail === 0) { setPressed(b, b.getAttribute("aria-pressed") !== "true"); applyLanguageToggles(); } });
+    box.appendChild(b);
   });
-  box.appendChild(langs);
 }
 
+function setPressed(b, on) { b.setAttribute("aria-pressed", String(on)); }
+
+// The filter, from whichever language buttons are pressed (none pressed = every word)
+function applyLanguageToggles() {
+  const cat = Array.from($("groups").querySelectorAll(".lang-toggle"))
+    .filter(b => b.getAttribute("aria-pressed") === "true").map(b => b.dataset.lang).join("");
+  if ((cat || null) !== state.group) setGroup(cat); else renderGroupButtons();
+}
+
+// Press one language and swipe across the others: every button passed over is set the way the first one went
+// (all on, or all off), and the filter changes once, on release.
+(function languageSwipe() {
+  const box = $("groups");
+  let paint = null;   // true = switching on, false = switching off, null = not swiping
+  const toggleAt = (x, y) => { const t = document.elementFromPoint(x, y); return t && t.closest("#groups .lang-toggle"); };
+  box.addEventListener("pointerdown", e => {
+    const b = e.target.closest(".lang-toggle");
+    if (!b || e.button > 0) return;
+    e.preventDefault();
+    paint = b.getAttribute("aria-pressed") !== "true";
+    setPressed(b, paint);
+    box.classList.add("swiping");
+  });
+  window.addEventListener("pointermove", e => {
+    if (paint === null) return;
+    const b = toggleAt(e.clientX, e.clientY);
+    if (b) setPressed(b, paint);
+  });
+  const end = () => {
+    if (paint === null) return;
+    paint = null;
+    box.classList.remove("swiping");
+    applyLanguageToggles();
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+})();
+
 function setGroup(cat) {
-  state.group = cat;
+  state.group = cat || null;   // no languages chosen = every word
   renderGroupButtons();
   refresh();
 }
 
 function setView(view) {
   state.view = view;
+  if (!$("detail").classList.contains("has-word")) renderIntro();   // the intro's map how-to only shows in the map view
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   $("map-wrap").hidden = view !== "map";
   $("list-wrap").hidden = view !== "list";
@@ -466,7 +498,7 @@ function appendListChunk() {
     ? "No words match these filters."
     : listShown < listItems.length
       ? "Showing " + listShown.toLocaleString() + " of " + listItems.length.toLocaleString() + " · scroll for more"
-      : listItems.length.toLocaleString() + " words";
+      : listItems.length.toLocaleString() + (listItems.length === 1 ? " word" : " words");
 }
 
 function card(i) {
@@ -486,17 +518,7 @@ function card(i) {
   gloss.className = "gloss";
   gloss.textContent = meaningOf(i).short;
   if (meaningOf(i).source !== "ko") gloss.classList.add("borrowed");
-  const tags = document.createElement("div");
-  tags.className = "tags";
-  [["z", "ZH", "Chinese"], ["j", "JA", "Japanese"], ["v", "VI", "Vietnamese"]].forEach(([c, label, name]) => {
-    const t = document.createElement("span");
-    t.textContent = label;
-    const on = w[CAT].includes(c);
-    if (!on) t.className = "off";
-    t.title = (on ? "Also a word in " : "Not a word in ") + name;
-    tags.appendChild(t);
-  });
-  b.append(ko, roman, gloss, tags);
+  b.append(ko, roman, gloss, langDots(w[CAT], "tags"));
   b.title = "Double-click to open this word's page";
   b.addEventListener("click", () => select(i));
   b.addEventListener("dblclick", () => openWord(i));
@@ -592,33 +614,43 @@ function makeLink(href, text) {
   return a;
 }
 
-// The intro shown in the side panel when no word is selected
+// The intro shown in the side panel when no word is selected. The map's how-to appears only in the map view.
+// What each language calls the characters, and how many of the site's words it shares
+const CHAR_NAMES = [
+  { c: "",  lang: "Korean",     say: "hanja",   word: "한자 漢字" },
+  { c: "z", lang: "Chinese",    say: "hànzì",   word: "汉字 漢字" },
+  { c: "j", lang: "Japanese",   say: "kanji",   word: "漢字" },
+  { c: "v", lang: "Vietnamese", say: "chữ Hán", word: "Hán tự 漢字" }
+];
+
 function renderIntro() {
   const panel = $("detail");
   panel.classList.remove("has-word");
   panel.innerHTML = "";
+  const map = state.view === "map";
   const box = el("div", "intro");
-  box.appendChild(el("h2", "", "Korean words, shared across Asia"));
-  box.appendChild(el("p", "", "For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. " +
-    "Each dot, tile, or card is a Korean word built from those characters, called Hanja. Select one to see whether the same characters " +
-    "are also a word in Chinese, Japanese, and Vietnamese, what they mean there, and how they sound."));
-  box.appendChild(el("p", "", "You don't need to read any of these languages. Search in English, or try:"));
-  const ex = el("div", "examples");
-  ["school", "promise", "學校", "hakgyo", "がっこう", "học hiệu"].forEach(q => {
-    const b = el("button", "", q);
-    b.type = "button";
-    b.addEventListener("click", () => { $("search").value = q; runSearch(q, true); });
-    ex.appendChild(b);
+  box.appendChild(el("h2", "intro-title", "Hanja Roots"));
+  box.appendChild(el("p", "intro-lead", "For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. " +
+    "Each language has its own name for them:"));
+
+  // The same two characters, four names
+  const names = el("div", "char-names");
+  CHAR_NAMES.forEach(n => {
+    const row = el("div", "char-name");
+    const who = el("span", "char-name-lang", n.lang);
+    const shared = n.c ? GROUP_ORDER.filter(g => g.includes(n.c)).reduce((t, g) => t + (COUNTS[g] || 0), 0) : WORDS.length;
+    // The name in the Latin alphabet is the big one, for English readers; the characters sit beside it
+    row.append(who, el("span", "char-name-say", n.say), el("span", "char-name-word", n.word),
+      el("span", "char-name-count", shared.toLocaleString() + (n.c ? " shared" : " words")));
+    names.appendChild(row);
   });
-  box.appendChild(ex);
-  box.appendChild(el("p", "legend", "Map: each dot is a word. Clouds group the words by which languages share them, sized by word count; " +
+  box.appendChild(names);
+
+  if (map) box.appendChild(el("p", "legend", "Each dot is a word. Clouds group the words by which languages share them, sized by word count; " +
     "the higher a cloud, the more languages share it. On a trackpad, swipe with two fingers to turn the map, hold Shift to move it, and pinch to zoom; with a mouse, drag to turn and scroll to zoom. " +
-    "Zoom in close to read the nearest words. Open one group (click its name, or switch languages above) to see its words as tiles in layers, from everyday words to specialized ones; scroll to move through the layers. " +
-    "List: the same words as cards, everyday words first. Double-click any word to open its own page."));
-  const about = el("button", "", "More about this site");
-  about.type = "button";
-  about.addEventListener("click", () => openAbout());
-  box.appendChild(about);
+    "Zoom in close to read the nearest words. Open one group (click its name, or choose languages above the words) to see its words as tiles in layers, from everyday words to specialized ones; scroll to move through the layers. " +
+    "Double-click any word to open its own page."));
+  box.appendChild(el("p", "intro-cta", "Select a Korean word to see which languages share it, their definitions, and how they sound."));
   panel.appendChild(box);
 }
 
@@ -645,6 +677,8 @@ function select(i) {
   panel.appendChild(head);
 
   // One card per language, all built the same way. Each whole card is a play button for that language.
+  // Languages that don't have the word are greyed out and go to the bottom, after the ones that do.
+  const missing = [];
   panel.appendChild(soundCard({
     label: "Korean", definition: meaning.source === "ko" ? meaning.full : "",
     variants: [{ lang: "ko", word: w[HANGUL], alt: w[HANJA], reading: KO_ROMAN[i], text: w[HANGUL], forms: [w[HANGUL]] }]
@@ -660,16 +694,17 @@ function select(i) {
           text: zhForm(w), forms: w[YUE] ? [zhForm(w), w[YUE].replace(/ /g, "")] : [], unavailable: !w[YUE] && "No Cantonese reading found for this word" }
       ]
     }));
-  } else panel.appendChild(missingCard("Chinese", "Not a word in Chinese"));
-  panel.appendChild(w[JP_MEANING] ? soundCard({
+  } else missing.push(missingCard("Chinese", "Not a word in Chinese"));
+  if (w[JP_MEANING]) panel.appendChild(soundCard({
     label: "Japanese", definition: w[JP_MEANING],
     variants: [{ lang: "ja", word: w[JP_FORM] || w[HANJA], reading: romajiWithMacrons(JP_ROMAN[i]), text: w[JP_READING],
                  forms: [w[JP_FORM], w[HANJA], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] }]
-  }) : missingCard("Japanese", "Not a word in Japanese"));
-  panel.appendChild(w[VI_WORD] ? soundCard({
+  })); else missing.push(missingCard("Japanese", "Not a word in Japanese"));
+  if (w[VI_WORD]) panel.appendChild(soundCard({
     label: "Vietnamese", definition: w[VI_MEANING],
     variants: [{ lang: "vi", word: w[VI_WORD], reading: "", text: w[VI_WORD], forms: [w[VI_WORD]] }]
-  }) : missingCard("Vietnamese", "Not a word in Vietnamese"));
+  })); else missing.push(missingCard("Vietnamese", "Not a word in Vietnamese"));
+  missing.forEach(m => panel.appendChild(m));
 
   const open = el("button", "full-breakdown", "See full breakdown →");
   open.type = "button";
@@ -1038,7 +1073,7 @@ $("search").addEventListener("focus", () => { if (state.matches && state.query) 
 
 $("everyday").addEventListener("click", e => {
   state.everyday = !state.everyday;
-  e.currentTarget.setAttribute("aria-pressed", String(state.everyday));
+  e.currentTarget.setAttribute("aria-checked", String(state.everyday));
   refresh();
 });
 $("random").addEventListener("click", () => {
@@ -1049,6 +1084,28 @@ $("random").addEventListener("click", () => {
 document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
 
 $("about-open").addEventListener("click", () => openAbout());
+
+// The title in the top bar resets the gallery to how it looks on arrival: no search, no filters,
+// Everyday off, no word selected, the list view at the top
+function resetGallery() {
+  $("search").value = "";
+  state.query = ""; state.matches = null; state.matchSet = null;
+  hideSuggestions();
+  state.group = null;
+  renderGroupButtons();
+  state.everyday = false;
+  $("everyday").setAttribute("aria-checked", "false");
+  state.selected = -1;
+  flyNext = false;
+  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  $("detail").classList.remove("has-word");
+  if (map3d) map3d.home();
+  setView("list");   // also redraws the list and the intro
+  $("list-wrap").scrollTop = 0;
+  $("detail").scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+$("home").addEventListener("click", resetGallery);
 $("about-nav").addEventListener("click", () => openAbout());
 
 let resizeTimer = null;
@@ -1209,12 +1266,21 @@ function syllableAt(reading, k, n) {
   return parts.length === n ? parts[k] : "";
 }
 
+// A coloured dot for each language that shares the word (colours set in style.css: Chinese, Japanese, Vietnamese)
+function langDots(cat, className) {
+  const box = el("span", className);
+  const names = Array.from(cat).map(c => LANG_NAME[c]);
+  box.title = "Also a word in " + joinList(names);
+  box.appendChild(el("span", "visually-hidden", box.title));
+  Array.from(cat).forEach(c => box.appendChild(el("span", "lang-dot lang-" + c)));
+  return box;
+}
+
 function wordButton(i) {
   const b = el("button", "word-chip");
   b.type = "button";
   b.append(el("span", "chip-ko", WORDS[i][HANGUL] + " " + WORDS[i][HANJA]), el("span", "chip-en", meaningOf(i).short));
-  const tags = el("span", "chip-tags", ["z", "j", "v"].filter(c => WORDS[i][CAT].includes(c)).map(c => ({ z: "ZH", j: "JA", v: "VI" })[c]).join(" "));
-  b.appendChild(tags);
+  b.appendChild(langDots(WORDS[i][CAT], "chip-tags"));
   b.addEventListener("click", () => openWord(i));
   return b;
 }
@@ -1239,7 +1305,7 @@ function renderWordPage(i) {
     meaning.source === "ko" ? meaning.full : meaning.source === "chars" ? meaning.short : "≈ " + meaning.full));
   if (meaning.source !== "ko") hero.appendChild(el("p", "hero-note", meaningNote(meaning)));
   const facts = el("p", "hero-facts");
-  const group = el("button", "fact-group", groupName(w[CAT]));
+  const group = el("button", "fact-group", comboLabel(w[CAT]));
   group.type = "button";
   group.title = "See every word in this group";
   group.addEventListener("click", () => { state.group = w[CAT]; renderGroupButtons(); listScroll = 0; galleryDirty = true; backToGallery(); });
@@ -1330,9 +1396,8 @@ function renderWordPage(i) {
 
     // Other words with this character
     const others = wordsWithChar(c).filter(j => j !== i);
-    const shared = others.filter(j => WORDS[j][CAT]).length;
-    card.appendChild(el("p", "char-count", "In " + (others.length + 1).toLocaleString() + " Korean words here" +
-      (others.length ? ", " + Math.round(100 * (shared + (w[CAT] ? 1 : 0)) / (others.length + 1)) + "% shared with another language." : ".")));
+    const uses = others.length + 1;
+    card.appendChild(el("p", "char-count", "Used in " + uses.toLocaleString() + " Korean word" + (uses === 1 ? "" : "s") + " on this site."));
     const picks = others.slice().sort((a, b) =>
       ((LEVEL_ORDER[WORDS[a][LEVEL]] ?? 3) - (LEVEL_ORDER[WORDS[b][LEVEL]] ?? 3)) || (WORDS[a][HANJA].length - WORDS[b][HANJA].length)).slice(0, 8);
     if (picks.length) {
@@ -1370,3 +1435,34 @@ renderIntro();
 startMap3D();
 refresh();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
+
+// ---------- No orphans ----------
+// Keeps the last two words of every paragraph, list item, and heading together, so a line never ends with one
+// word on its own. CSS text-wrap: pretty does this in newer browsers; this covers the rest, including text
+// added later (word pages, the side panel).
+const ORPHAN_SELECTOR = "p, li, h1, h2, h3, dd, figcaption, .lang-def, .hero-meaning, .hero-summary";
+function joinLastWords(root) {
+  const els = root.matches && root.matches(ORPHAN_SELECTOR) ? [root] : [];
+  if (root.querySelectorAll) els.push(...root.querySelectorAll(ORPHAN_SELECTOR));
+  els.forEach(e => {
+    // Text nodes from the end: find the last space (it may sit before a link or bold word) and make it non-breaking,
+    // as long as what follows it is short
+    const nodes = [];
+    const walker = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) nodes.push(n);
+    let tail = 0;
+    for (let k = nodes.length - 1; k >= 0; k--) {
+      const v = nodes[k].nodeValue;
+      const t = k === nodes.length - 1 ? v.trimEnd() : v;
+      const m = /[ \t\n\r]+(?=[^ \t\n\r]*$)/.exec(t);   // the last run of breakable spaces
+      if (!m) { tail += t.length; continue; }
+      const before = t.slice(0, m.index) + nodes.slice(0, k).map(n => n.nodeValue).join("");
+      if (tail + t.length - m.index - m[0].length <= 20 && /\S/.test(before))
+        nodes[k].nodeValue = v.slice(0, m.index) + "\u00A0" + v.slice(m.index + m[0].length);
+      return;
+    }
+  });
+}
+joinLastWords(document.body);
+new MutationObserver(list => list.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) joinLastWords(n); })))
+  .observe(document.body, { childList: true, subtree: true });
