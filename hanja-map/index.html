@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hanja Roots</title>
-  <link rel="stylesheet" href="style.css?v=20261110p">
+  <link rel="stylesheet" href="style.css?v=20261111h">
 </head>
 <body>
   <header class="topbar">
@@ -16,8 +16,8 @@
       <div id="suggestions" role="listbox" hidden></div>
     </div>
     <div class="view-switch" role="group" aria-label="View">
-      <button type="button" data-view="map" aria-pressed="true">Map</button>
-      <button type="button" data-view="list" aria-pressed="false">List</button>
+      <button type="button" data-view="map" aria-pressed="false">Map</button>
+      <button type="button" data-view="list" aria-pressed="true">List</button>
     </div>
     <div id="groups" aria-label="Filter by language"></div>
     <div class="extras">
@@ -30,7 +30,7 @@
   <main class="layout">
     <section id="view">
       <p id="status" aria-live="polite"></p>
-      <div id="map-wrap">
+      <div id="map-wrap" hidden>
         <canvas id="map" aria-label="Map of Korean words grouped by whether they are shared with Chinese, Japanese, and Vietnamese"></canvas>
         <div id="tooltip" hidden></div>
         <div class="map-tools" aria-label="Map controls">
@@ -41,7 +41,7 @@
         <p id="map-note" hidden>Your browser has 3D graphics turned off, so you're seeing the flat version of the map. Everything else works the same.</p>
         <p class="map-hint">Trackpad: swipe with two fingers to turn, hold Shift to move, pinch to zoom · Mouse: drag to turn, scroll to zoom, right-drag to move</p>
       </div>
-      <div id="list-wrap" hidden>
+      <div id="list-wrap">
         <div id="list"></div>
         <p id="list-end"></p>
       </div>
@@ -89,6 +89,10 @@
       <li>"Not shared" means the words weren't found in the Chinese, Japanese, or Vietnamese dictionaries used here. That doesn't mean
           Korean invented them: dictionary coverage varies, and many are rare compounds.</li>
       <li>Sharing characters doesn't mean sharing a meaning. Select a word to compare what it means in each language.</li>
+      <li>About 10,000 rarer words have no English meaning in the Korean dictionaries used here. For those, the site shows what
+          the same word means in Japanese, Chinese, or Vietnamese, marked ≈ (for example "≈ temporary house"), or, if no other
+          language has it, the meanings of its characters one by one in parentheses (for example "(house + plan + nature)"). Both
+          are hints rather than definitions: meanings can differ between languages, and a word is often more than its characters.</li>
       <li>"Everyday words" are the 2,403 words here that Korea's Basic Korean Dictionary marks as beginner or intermediate vocabulary.</li>
       <li>Vietnamese is now written in the Latin alphabet, so Vietnamese words are matched by their Sino-Vietnamese reading
           (學校 → học hiệu). In a hand-checked sample, about 2 in 40 matches were different words that sound the same.
@@ -163,6 +167,8 @@
           (kJapaneseNewVariant), used to match older Hanja forms like 學 to modern Japanese forms like 学.</li>
       <li><strong>Tang-era readings:</strong> <a href="https://www.unicode.org/reports/tr38/#kTang" target="_blank" rel="noopener">Unicode Unihan kTang</a>,
           from Hugh M. Stimson's <em>T'ang Poetic Vocabulary</em> (1976), for about 2,560 characters, covering most of the characters in these words.</li>
+      <li><strong>Character meanings:</strong> <a href="https://www.unicode.org/reports/tr38/#kDefinition" target="_blank" rel="noopener">Unicode Unihan kDefinition</a>,
+          shortened to a sense or two, shown for each character on a word's page and for words with no English meaning.</li>
       <li><strong>Character variants:</strong> Unicode Unihan kZVariant, kSemanticVariant, and kTraditionalVariant, used to match words Korean writes
           with a different form of a character than Chinese or Japanese (敎 for 教, 硏 for 研).</li>
       <li>Meanings are shortened. Matching uses whole words written with the same characters.</li>
@@ -171,14 +177,14 @@
   </div>
 
 
-  <script src="lib/three.min.js?v=20261110p"></script>
-  <script src="lib/OrbitControls.js?v=20261110p"></script>
-  <script src="words.js?v=20261110p"></script>
-  <script src="characters.js?v=20261110p"></script>
-  <script src="romanize.js?v=20261110p"></script>
-  <script src="recordings.js?v=20261110p"></script>
-  <script src="speech.js?v=20261110p"></script>
-  <script src="map3d.js?v=20261110p"></script>
-  <script src="script.js?v=20261110p"></script>
+  <script src="lib/three.min.js?v=20261111h"></script>
+  <script src="lib/OrbitControls.js?v=20261111h"></script>
+  <script src="words.js?v=20261111h"></script>
+  <script src="characters.js?v=20261111h"></script>
+  <script src="romanize.js?v=20261111h"></script>
+  <script src="recordings.js?v=20261111h"></script>
+  <script src="speech.js?v=20261111h"></script>
+  <script src="map3d.js?v=20261111h"></script>
+  <script src="script.js?v=20261111h"></script>
 </body>
 </html>

@@ -51,21 +51,24 @@ function voiceFor(lang) {
 // - Safari ignores the chosen voice unless the utterance's language matches the voice's language
 let currentUtterance = null;
 
-function speak(text, lang, button) {
-  if (!speechSupported || !text) return;
+// onEnd (optional) runs when the speech finishes or fails, so a caller can show when it's playing
+function speak(text, lang, button, onEnd) {
+  if (!speechSupported || !text) { if (onEnd) onEnd(); return; }
   if (!speechVoices.length) loadVoices();
   const synth = window.speechSynthesis;
   const u = new SpeechSynthesisUtterance(text);
   const v = voiceFor(lang);
   if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = SPEECH_LANGS[lang].code; }
   u.rate = 0.85;
-  u.onerror = e => { if (button && e.error !== "interrupted" && e.error !== "canceled") showSpeechError(button, e.error); };
+  u.onerror = e => { if (button && e.error !== "interrupted" && e.error !== "canceled") showSpeechError(button, e.error); if (onEnd) onEnd(); };
+  u.onend = () => { if (onEnd) onEnd(); };
   currentUtterance = u;
   const start = () => { if (synth.paused && synth.resume) synth.resume(); synth.speak(u); };
   if (synth.speaking || synth.pending) { synth.cancel(); setTimeout(start, 120); } else { start(); }
 }
 
 function showSpeechError(button, error) {
+  if (!button.parentNode) return;
   let note = button.parentNode.querySelector(".speech-error");
   if (!note) {
     note = document.createElement("small");

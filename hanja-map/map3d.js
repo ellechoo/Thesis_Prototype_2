@@ -856,6 +856,7 @@ function createMap3D(wrap, opts) {
     pointMat.uniforms.uMaxTile.value = Math.min(maxPoint, 400 * dpr);
     camera.aspect = W / Hpx;
     camera.updateProjectionMatrix();
+    if (mode !== null && !anim) viewDirty = true;   // in a group's view, re-frame the layers for the new size
     needs = true;
   }
   new ResizeObserver(resize).observe(wrap);
@@ -1013,7 +1014,7 @@ function createMap3D(wrap, opts) {
         if (!first) {
           if (st.group === null) home(900);
           else flyToView(900);
-        }
+        } else if (st.group !== null) flyToView(0);   // the page started on a group: begin facing its layers
       }
       restyle();
       selMarker.visible = selected >= 0;

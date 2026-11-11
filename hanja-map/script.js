@@ -59,8 +59,8 @@ const ctx = canvas.getContext("2d");
 const tooltip = $("tooltip");
 
 const state = {
-  view: "map",       // "map" or "list"
-  group: null,       // null = all groups, otherwise a category ("zjv", "", ...)
+  view: "list",      // "map" or "list" (the list is shown first, for now)
+  group: "zjv",      // null = all groups, otherwise a category ("zjv", "", ...); starts with every language switched on
   query: "",
   matches: null,     // array of word indexes matching the search, best first; null = no search
   matchSet: null,
@@ -183,7 +183,7 @@ function lookOf(i) {
 function showTooltip(i, x, y) {
   if (i < 0) { tooltip.hidden = true; return; }
   const wrap = $("map-wrap");
-  tooltip.textContent = WORDS[i][HANGUL] + " (" + KO_ROMAN[i] + ") " + WORDS[i][HANJA] + " · " + englishShort(WORDS[i][KO_MEANING]);
+  tooltip.textContent = WORDS[i][HANGUL] + " (" + KO_ROMAN[i] + ") " + WORDS[i][HANJA] + " · " + meaningOf(i).short;
   tooltip.hidden = false;
   tooltip.style.left = Math.max(4, Math.min(x + 14, wrap.clientWidth - tooltip.offsetWidth - 4)) + "px";
   tooltip.style.top = Math.min(y + 16, wrap.clientHeight - 28) + "px";
@@ -211,7 +211,7 @@ function startMap3D() {
     groupName,
     countOf: cat => COUNTS[cat] || 0,
     langName: c => LANG_NAME[c],
-    labelOf: i => [WORDS[i][HANGUL] + " " + WORDS[i][HANJA], englishShort(WORDS[i][KO_MEANING])],
+    labelOf: i => [WORDS[i][HANGUL] + " " + WORDS[i][HANJA], meaningOf(i).short],
     hangulOf: i => WORDS[i][HANGUL],
     hanjaOf: i => WORDS[i][HANJA],
     levelOf: i => WORDS[i][LEVEL],
@@ -484,7 +484,8 @@ function card(i) {
   roman.textContent = KO_ROMAN[i];
   const gloss = document.createElement("div");
   gloss.className = "gloss";
-  gloss.textContent = englishShort(w[KO_MEANING]);
+  gloss.textContent = meaningOf(i).short;
+  if (meaningOf(i).source !== "ko") gloss.classList.add("borrowed");
   const tags = document.createElement("div");
   tags.className = "tags";
   [["z", "ZH", "Chinese"], ["j", "JA", "Japanese"], ["v", "VI", "Vietnamese"]].forEach(([c, label, name]) => {
@@ -538,9 +539,40 @@ function englishShort(m) {
   return first || m.replace(/[()]/g, "").trim();
 }
 
-// "학교 學校 · school", leaving out the gloss when there isn't one
+// A word's English meaning, from the best source there is:
+//  ko    — the Korean dictionaries (Basic Korean Dictionary or kengdic)
+//  ja/zh/vi — when the Korean dictionaries have no English, the meaning of the same word in Japanese, Chinese, or Vietnamese
+//  chars — otherwise, the meanings of its characters one by one (Unicode Unihan), which only hint at the meaning
+// .full is for the word's own page and panel; .short is for labels (≈ marks a borrowed meaning, parentheses mark characters)
+const meaningCache = new Map();
+function meaningOf(i) {
+  if (meaningCache.has(i)) return meaningCache.get(i);
+  const w = WORDS[i];
+  let m;
+  if (w[KO_MEANING].trim()) m = { source: "ko", full: w[KO_MEANING], short: englishShort(w[KO_MEANING]) };
+  else {
+    const borrowed = [["ja", w[JP_MEANING]], ["zh", w[ZH_MEANING]], ["vi", w[VI_MEANING]]].find(([, x]) => x && x.trim());
+    if (borrowed) m = { source: borrowed[0], full: borrowed[1], short: "≈ " + englishShort(borrowed[1]) };
+    else {
+      const parts = Array.from(w[HANJA]).map(c => (CHAR_MEANING[c] || "?").split(",")[0]);
+      m = { source: "chars", full: Array.from(w[HANJA]).map(c => c + " " + (CHAR_MEANING[c] || "?")).join(" · "),
+            short: "(" + parts.join(" + ") + ")" };
+    }
+  }
+  meaningCache.set(i, m);
+  return m;
+}
+const BORROWED_FROM = { ja: "Japanese", zh: "Chinese", vi: "Vietnamese" };
+// One line explaining where a meaning came from, when it isn't from the Korean dictionaries
+function meaningNote(m) {
+  if (m.source === "ko") return "";
+  if (m.source === "chars") return "No English meaning in the Korean dictionaries used here. These are the meanings of its characters one by one, which only hint at what the word means.";
+  return "No English meaning in the Korean dictionaries used here. This is what the same word means in " + BORROWED_FROM[m.source] + ", which may differ from the Korean meaning.";
+}
+
+// "학교 學校 · school"
 function wordLabel(i) {
-  const g = englishShort(WORDS[i][KO_MEANING]);
+  const g = meaningOf(i).short;
   return WORDS[i][HANGUL] + " " + WORDS[i][HANJA] + (g ? " · " + g : "");
 }
 
@@ -563,6 +595,7 @@ function makeLink(href, text) {
 // The intro shown in the side panel when no word is selected
 function renderIntro() {
   const panel = $("detail");
+  panel.classList.remove("has-word");
   panel.innerHTML = "";
   const box = el("div", "intro");
   box.appendChild(el("h2", "", "Korean words, shared across Asia"));
@@ -600,46 +633,48 @@ function select(i) {
   panel.innerHTML = "";
   panel.scrollTop = 0;
 
-  const close = el("button", "close", "Close");
-  close.type = "button";
-  close.setAttribute("aria-label", "Close word details");
-  close.addEventListener("click", deselect);
-  panel.appendChild(close);
+  panel.classList.add("has-word");
 
-  panel.appendChild(el("h2", "", "“" + englishShort(w[KO_MEANING]) + "”"));
-  panel.appendChild(el("div", "headword", w[HANGUL] + " " + w[HANJA]));
-  panel.appendChild(el("p", "summary", sharedSentence(w[CAT]) +
-    (w[LEVEL] ? " Korea's Basic Korean Dictionary lists it as " + (w[LEVEL] === "intermediate" ? "an " : "a ") + w[LEVEL] + "-level word." : "")));
+  // The English meaning, as the panel's heading
+  const meaning = meaningOf(i);
+  const head = el("div", "panel-head");
+  head.appendChild(el("h2", "panel-en" + (meaning.source === "ko" ? "" : " borrowed"), meaning.short));
+  if (meaning.source !== "ko") head.appendChild(el("p", "panel-note", meaning.source === "chars"
+    ? "No English meaning in the Korean dictionaries; these are its characters' meanings."
+    : "No English meaning in the Korean dictionaries; this is the " + BORROWED_FROM[meaning.source] + " meaning."));
+  panel.appendChild(head);
 
-  // How the same characters sound in each language that shares them
-  const sounds = [["Korean", KO_ROMAN[i]]];
-  if (w[VI_WORD]) sounds.push(["Vietnamese", w[VI_WORD]]);
-  if (w[JP_MEANING]) sounds.push(["Japanese", JP_ROMAN[i]]);
-  if (w[YUE]) sounds.push(["Cantonese", w[YUE].replace(/[1-6]/g, "")]);
-  if (w[ZH_MEANING]) sounds.push(["Mandarin", pinyinMarks(w[ZH_PINYIN])]);
-  if (sounds.length > 1) {
-    const table = el("table", "sounds");
-    const cap = el("caption", "visually-hidden", "How " + w[HANJA] + " sounds in each language");
-    table.appendChild(cap);
-    sounds.forEach(([lang, text]) => {
-      const tr = document.createElement("tr");
-      tr.append(el("th", "", lang), el("td", "", text));
-      table.appendChild(tr);
-    });
-    panel.appendChild(table);
-  }
+  // One card per language, all built the same way. Each whole card is a play button for that language.
+  panel.appendChild(soundCard({
+    label: "Korean", definition: meaning.source === "ko" ? meaning.full : "",
+    variants: [{ lang: "ko", word: w[HANGUL], alt: w[HANJA], reading: KO_ROMAN[i], text: w[HANGUL], forms: [w[HANGUL]] }]
+  }));
+  if (w[ZH_MEANING]) {
+    const simp = w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== zhForm(w) ? w[ZH_SIMPLIFIED] : "";
+    panel.appendChild(soundCard({
+      label: "Chinese", definition: w[ZH_MEANING], remember: "chinese",
+      variants: [
+        { lang: "zh", name: "Mandarin", word: zhForm(w), alt: simp, reading: pinyinMarks(w[ZH_PINYIN]),
+          text: w[ZH_SIMPLIFIED] || zhForm(w), forms: [w[ZH_SIMPLIFIED], zhForm(w), pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] },
+        { lang: "yue", name: "Cantonese", word: zhForm(w), alt: simp, reading: w[YUE] || "",
+          text: zhForm(w), forms: w[YUE] ? [zhForm(w), w[YUE].replace(/ /g, "")] : [], unavailable: !w[YUE] && "No Cantonese reading found for this word" }
+      ]
+    }));
+  } else panel.appendChild(missingCard("Chinese", "Not a word in Chinese"));
+  panel.appendChild(w[JP_MEANING] ? soundCard({
+    label: "Japanese", definition: w[JP_MEANING],
+    variants: [{ lang: "ja", word: w[JP_FORM] || w[HANJA], reading: romajiWithMacrons(JP_ROMAN[i]), text: w[JP_READING],
+                 forms: [w[JP_FORM], w[HANJA], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] }]
+  }) : missingCard("Japanese", "Not a word in Japanese"));
+  panel.appendChild(w[VI_WORD] ? soundCard({
+    label: "Vietnamese", definition: w[VI_MEANING],
+    variants: [{ lang: "vi", word: w[VI_WORD], reading: "", text: w[VI_WORD], forms: [w[VI_WORD]] }]
+  }) : missingCard("Vietnamese", "Not a word in Vietnamese"));
 
-  const open = el("button", "open-page", "Open full page →");
+  const open = el("button", "full-breakdown", "See full breakdown →");
   open.type = "button";
   open.addEventListener("click", () => openWord(i));
   panel.appendChild(open);
-
-  appendLangSections(panel, i);
-
-  const more = el("p");
-  more.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(w[HANJA]), "Look up " + w[HANJA] + " on Wiktionary"));
-  panel.appendChild(more);
-  panel.appendChild(voicesNote());
 
   // Keep the list and map in step with the selection
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
@@ -658,11 +693,124 @@ function voicesNote() {
   return voices;
 }
 
+// ---------- Side panel cards ----------
+// A language card in the side panel: the whole card plays the word in that language. It plays a native speaker's
+// recording when Wikimedia Commons has one, otherwise the device's voice. The speaker icon fills in while playing.
+const SPEAKER_SVG = '<svg class="speaker" viewBox="0 0 32 24" aria-hidden="true"><path class="cone" d="M3 8h5l7-5v18l-7-5H3z"/>' +
+  '<path class="wave" d="M20 8.5c1.6 1.8 1.6 5.2 0 7"/><path class="wave" d="M24 5c3.2 3.6 3.2 10.4 0 14"/></svg>';
+let playingCard = null;
+function setPlaying(card, on) {
+  if (on && playingCard && playingCard !== card) playingCard.classList.remove("is-playing");
+  card.classList.toggle("is-playing", on);
+  playingCard = on ? card : (playingCard === card ? null : playingCard);
+}
+// o: label, definition, variants (one per pronunciation; Chinese has Mandarin and Cantonese), remember (a key
+// to remember which variant was last chosen, across words). Every card has the same parts in the same order:
+// label (with the switch when there's more than one pronunciation), word, reading, meaning, speaker.
+const chosenVariant = {};
+function soundCard(o) {
+  const card = el("div", "lang-card");
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  const labelRow = el("div", "lang-label-row");
+  labelRow.appendChild(el("span", "lang-label", o.label));
+  card.appendChild(labelRow);
+  const wordEl = el("div", "lang-word"), readingEl = el("div", "lang-reading");
+  card.append(wordEl, readingEl);
+  if (o.definition) card.appendChild(el("div", "lang-def", o.definition));
+  const status = el("div", "lang-status");
+  card.appendChild(status);
+  card.insertAdjacentHTML("beforeend", SPEAKER_SVG);
+
+  let current = 0;
+  if (o.remember && chosenVariant[o.remember] !== undefined && !o.variants[chosenVariant[o.remember]].unavailable) current = chosenVariant[o.remember];
+  const recordings = o.variants.map(() => null);
+  o.variants.forEach((v, k) => {
+    if (!v.forms.length) return;
+    findRecording(v.lang, v.forms.filter(Boolean)).then(rec => { recordings[k] = rec; if (k === current) show(); }).catch(() => {});
+  });
+
+  // The switch between pronunciations (Chinese: Mandarin | Cantonese)
+  let switchButtons = [];
+  if (o.variants.length > 1) {
+    const sw = el("div", "variant-switch");
+    sw.setAttribute("role", "radiogroup");
+    sw.setAttribute("aria-label", o.label + " pronunciation");
+    switchButtons = o.variants.map((v, k) => {
+      const b = el("button", "", v.name);
+      b.type = "button";
+      b.setAttribute("role", "radio");
+      if (v.unavailable) { b.disabled = true; b.title = v.unavailable; }
+      b.addEventListener("click", e => {
+        e.stopPropagation();   // switching doesn't play; tapping the card does
+        current = k;
+        if (o.remember) chosenVariant[o.remember] = k;
+        status.classList.remove("error");
+        show();
+      });
+      b.addEventListener("keydown", e => e.stopPropagation());
+      sw.appendChild(b);
+      return b;
+    });
+    card.appendChild(sw);   // sits in the card's top right corner
+  }
+
+  function show() {
+    const v = o.variants[current];
+    wordEl.textContent = v.word;
+    if (v.alt) wordEl.appendChild(el("span", "lang-alt", " " + v.alt));
+    readingEl.textContent = v.reading;
+    readingEl.hidden = !v.reading;
+    switchButtons.forEach((b, k) => b.setAttribute("aria-checked", String(k === current)));
+    const rec = recordings[current];
+    if (!status.classList.contains("error")) status.textContent = rec ? "Native speaker recording by " + rec.speaker : "";
+    card.setAttribute("aria-label", o.label + (v.name ? " (" + v.name + ")" : "") + ": " + v.word + ". Play pronunciation");
+    card.dataset.lang = v.lang;
+  }
+  show();
+
+  function play() {
+    const v = o.variants[current];
+    const done = () => setPlaying(card, false);
+    status.classList.remove("error");
+    const rec = recordings[current];
+    if (rec) {
+      setPlaying(card, true);
+      playRecording(rec).then(() => { currentAudio.onended = done; currentAudio.onpause = done; }).catch(() => speakIt());
+    } else speakIt();
+    function speakIt() {
+      if (!speechSupported || !voiceFor(v.lang)) {
+        status.textContent = "No " + SPEECH_LANGS[v.lang].name + " voice on this device yet. See About for how to add one.";
+        status.classList.add("error");
+        done();
+        return;
+      }
+      setPlaying(card, true);
+      speak(v.text, v.lang, null, done);
+    }
+  }
+  card.addEventListener("click", play);
+  card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); play(); } });
+  return card;
+}
+function missingCard(lang, text) {
+  const card = el("div", "lang-card missing");
+  const labelRow = el("div", "lang-label-row");
+  labelRow.appendChild(el("span", "lang-label", lang));
+  card.append(labelRow, el("div", "lang-def", text));
+  return card;
+}
+
 // The Korean, Chinese, Japanese, and Vietnamese sections for a word, used by the side panel and the word page
 function appendLangSections(box, i) {
   const w = WORDS[i];
-  box.appendChild(langSection("Korean", w[HANGUL] + " " + w[HANJA], KO_ROMAN[i], w[KO_MEANING],
-    w[KO_SOURCE].includes("k") ? "From the Basic Korean Dictionary." : "From kengdic only, a community dictionary.",
+  const meaning = meaningOf(i);
+  box.appendChild(langSection("Korean", w[HANGUL] + " " + w[HANJA], KO_ROMAN[i],
+    meaning.source === "ko" ? meaning.full
+      : meaning.source === "chars" ? "Its characters: " + meaning.full + "."
+      : "In " + BORROWED_FROM[meaning.source] + ": " + meaning.full,
+    meaning.source !== "ko" ? meaningNote(meaning)
+      : w[KO_SOURCE].includes("k") ? "From the Basic Korean Dictionary." : "From kengdic only, a community dictionary.",
     [{ text: w[HANGUL], lang: "ko", forms: [w[HANGUL]] }]));
 
   box.appendChild(w[ZH_MEANING]
@@ -1064,7 +1212,7 @@ function syllableAt(reading, k, n) {
 function wordButton(i) {
   const b = el("button", "word-chip");
   b.type = "button";
-  b.append(el("span", "chip-ko", WORDS[i][HANGUL] + " " + WORDS[i][HANJA]), el("span", "chip-en", englishShort(WORDS[i][KO_MEANING])));
+  b.append(el("span", "chip-ko", WORDS[i][HANGUL] + " " + WORDS[i][HANJA]), el("span", "chip-en", meaningOf(i).short));
   const tags = el("span", "chip-tags", ["z", "j", "v"].filter(c => WORDS[i][CAT].includes(c)).map(c => ({ z: "ZH", j: "JA", v: "VI" })[c]).join(" "));
   b.appendChild(tags);
   b.addEventListener("click", () => openWord(i));
@@ -1076,7 +1224,7 @@ function renderWordPage(i) {
   state.selected = i;   // lets the Vietnamese check finish for this word
   const page = $("word-content");
   page.innerHTML = "";
-  document.title = w[HANGUL] + " " + w[HANJA] + " · " + englishShort(w[KO_MEANING]) + " · Hanja Roots";
+  document.title = w[HANGUL] + " " + w[HANJA] + " · " + meaningOf(i).short + " · Hanja Roots";
 
   // Heading
   const hero = el("header", "hero");
@@ -1086,7 +1234,10 @@ function renderWordPage(i) {
   title.append(el("span", "hero-ko", w[HANGUL]), el("span", "hero-hanja", w[HANJA]));
   hero.appendChild(title);
   hero.appendChild(el("p", "hero-roman", KO_ROMAN[i]));
-  hero.appendChild(el("p", "hero-meaning", w[KO_MEANING]));
+  const meaning = meaningOf(i);
+  hero.appendChild(el("p", "hero-meaning" + (meaning.source === "ko" ? "" : " borrowed"),
+    meaning.source === "ko" ? meaning.full : meaning.source === "chars" ? meaning.short : "≈ " + meaning.full));
+  if (meaning.source !== "ko") hero.appendChild(el("p", "hero-note", meaningNote(meaning)));
   const facts = el("p", "hero-facts");
   const group = el("button", "fact-group", groupName(w[CAT]));
   group.type = "button";
@@ -1153,6 +1304,7 @@ function renderWordPage(i) {
     if (w[ZH_FORM] && Array.from(w[ZH_FORM]).length === n && Array.from(w[ZH_FORM])[k] !== c) forms.unshift("Chinese " + Array.from(w[ZH_FORM])[k]);
     if (forms.length) head.appendChild(el("span", "char-forms", forms.join(" · ")));
     card.appendChild(head);
+    if (CHAR_MEANING[c]) card.appendChild(el("p", "char-meaning", CHAR_MEANING[c]));
 
     // How this character is read in this word
     const reads = [];

@@ -586,3 +586,77 @@ details.voices summary { cursor: pointer; }
   .sound-row { grid-template-columns: repeat(2, 1fr); }
   .sound-roman { font-size: 20px; }
 }
+
+/* Meanings not from the Korean dictionaries: borrowed from another language (≈) or pieced from the characters ( + ) */
+.borrowed { color: #555; font-style: italic; }
+#detail h2.borrowed { font-weight: 500; }
+.hero-note { margin: 8px 0 0; max-width: 680px; font-size: 13px; color: #555; line-height: 1.45; }
+.char-meaning { margin: 8px 0 0; font-size: 15px; }
+
+/* ---------- Side panel for a selected word: one card per language, each a play button ---------- */
+/* Every card has the same parts in the same order: label, (switch), word, reading, meaning, speaker */
+#detail { position: relative; }
+#detail.has-word { padding: 0; }
+#detail .close-circle {
+  position: absolute; top: 14px; right: 14px; z-index: 2;
+  width: 30px; height: 30px; padding: 0; border: 1.5px solid #000; border-radius: 50%;
+  background: #fff; font-size: 20px; line-height: 26px; text-align: center;
+}
+#detail .close-circle:hover { background: #000; color: #fff; }
+
+.panel-head { padding: 22px 20px 18px; border-bottom: 1px solid #000; }
+#detail .panel-en { margin: 0; font-size: 32px; font-weight: 600; line-height: 1.15; }
+#detail .panel-en.borrowed { font-weight: 500; }
+.panel-note { margin: 6px 0 0; font-size: 13px; color: #555; line-height: 1.4; }
+
+.lang-card {
+  position: relative; display: block;
+  padding: 16px 66px 18px 20px;
+  border-bottom: 1px solid #000; background: #fff; color: #000; cursor: pointer;
+}
+.lang-card:hover { background: #f4f4f4; }
+.lang-card:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
+.lang-label-row { display: flex; align-items: center; gap: 10px; min-height: 18px; }
+.lang-label { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #444; }
+.lang-word { margin-top: 6px; font-size: 24px; line-height: 1.2; }
+.lang-alt { font-size: 16px; color: #555; }
+.lang-reading { margin-top: 2px; font-size: 15px; color: #444; }
+.lang-def { margin-top: 6px; font-size: 12.5px; line-height: 1.4; color: #222; }
+.lang-status { margin-top: 4px; font-size: 12px; color: #666; }
+.lang-status:empty { display: none; }
+.lang-status.error { color: #a00; }
+.lang-card.missing { cursor: default; color: #999; }
+.lang-card.missing:hover { background: #fff; }
+.lang-card.missing .lang-label { color: #999; }
+.lang-card.missing .lang-def { color: #999; }
+
+/* The Mandarin | Cantonese switch: a clearly pressable pair of buttons */
+.variant-switch {
+  position: absolute; top: 12px; right: 16px;
+  display: inline-flex;
+  border: 1.5px solid #000; border-radius: 999px; overflow: hidden; background: #fff;
+}
+.variant-switch button {
+  padding: 6px 14px; border: 0; border-radius: 0; background: #fff; color: #000;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.variant-switch button + button { border-left: 1.5px solid #000; }
+.variant-switch button:hover { background: #e6e6e6; }
+.variant-switch button[aria-checked="true"] { background: #000; color: #fff; }
+.variant-switch button:disabled { color: #aaa; cursor: not-allowed; background: #fff; }
+.variant-switch button:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
+
+/* The speaker: an outline normally, filled in while playing */
+.speaker { position: absolute; right: 20px; bottom: 18px; width: 34px; height: 26px;
+  fill: none; stroke: #000; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.lang-card.is-playing { background: #f4f4f4; }
+.lang-card.is-playing .speaker .cone { fill: #000; }
+.lang-card.is-playing .speaker .wave { animation: speaker-pulse 0.9s ease-in-out infinite; }
+@keyframes speaker-pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .lang-card.is-playing .speaker .wave { animation: none; } }
+
+.full-breakdown {
+  display: block; width: 100%; padding: 14px 20px; border: 0; background: #fff;
+  text-align: left; font-size: 14px; font-weight: 500;
+}
+.full-breakdown:hover { background: #f4f4f4; }
