@@ -623,34 +623,60 @@ const CHAR_NAMES = [
   { c: "v", lang: "Vietnamese", say: "chữ Hán", word: "Hán tự 漢字" }
 ];
 
+// The example word in the intro, read four ways
+const INTRO_EXAMPLE = "가족";
+
 function renderIntro() {
   const panel = $("detail");
   panel.classList.remove("has-word");
+  document.body.classList.add("intro-showing");   // the panel shows the title, so the top bar's title steps aside
   panel.innerHTML = "";
   const map = state.view === "map";
   const box = el("div", "intro");
   box.appendChild(el("h2", "intro-title", "Hanja Roots"));
-  box.appendChild(el("p", "intro-lead", "For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters. " +
-    "Each language has its own name for them:"));
+  box.appendChild(el("p", "intro-lead", "More than half of Korean vocabulary is built from Chinese characters. Korean, Chinese, " +
+    "Japanese, and Vietnamese were all once written with them, and each has its own name for them:"));
 
-  // The same two characters, four names
+  // The same two characters, four names: the Latin-alphabet name is the big one, for English readers
   const names = el("div", "char-names");
   CHAR_NAMES.forEach(n => {
     const row = el("div", "char-name");
-    const who = el("span", "char-name-lang", n.lang);
-    const shared = n.c ? GROUP_ORDER.filter(g => g.includes(n.c)).reduce((t, g) => t + (COUNTS[g] || 0), 0) : WORDS.length;
-    // The name in the Latin alphabet is the big one, for English readers; the characters sit beside it
-    row.append(who, el("span", "char-name-say", n.say), el("span", "char-name-word", n.word),
-      el("span", "char-name-count", shared.toLocaleString() + (n.c ? " shared" : " words")));
+    row.append(el("span", "char-name-lang", n.lang), el("span", "char-name-say", n.say), el("span", "char-name-word", n.word));
     names.appendChild(row);
   });
   box.appendChild(names);
 
-  if (map) box.appendChild(el("p", "legend", "Each dot is a word. Clouds group the words by which languages share them, sized by word count; " +
-    "the higher a cloud, the more languages share it. On a trackpad, swipe with two fingers to turn the map, hold Shift to move it, and pinch to zoom; with a mouse, drag to turn and scroll to zoom. " +
-    "Zoom in close to read the nearest words. Open one group (click its name, or choose languages above the words) to see its words as tiles in layers, from everyday words to specialized ones; scroll to move through the layers. " +
-    "Double-click any word to open its own page."));
-  box.appendChild(el("p", "intro-cta", "Select a Korean word to see which languages share it, their definitions, and how they sound."));
+  box.appendChild(el("p", "", "Hanja Roots traces " + WORDS.length.toLocaleString() + " Korean words whose characters are also a word in " +
+    "Chinese, Japanese, or Vietnamese. For example:"));
+
+  // One word, four languages; clicking it opens the word
+  const i = WORDS.findIndex(w => w[HANGUL] === INTRO_EXAMPLE);
+  if (i >= 0) {
+    const w = WORDS[i];
+    const ex = el("button", "intro-example");
+    ex.type = "button";
+    const head = el("span", "ex-head");
+    head.append(el("span", "ex-ko", w[HANGUL]), el("span", "ex-sub", w[HANJA] + " · " + meaningOf(i).short));
+    const grid = el("span", "ex-grid");
+    [["Korean", KO_ROMAN[i]], ["Mandarin", w[ZH_PINYIN] && pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")],
+     ["Japanese", w[JP_READING] && romajiWithMacrons(JP_ROMAN[i])], ["Vietnamese", w[VI_WORD]]].forEach(([lang, say]) => {
+      if (!say) return;
+      const cell = el("span", "ex-cell");
+      cell.append(el("span", "ex-lang", lang), el("span", "ex-say", say));
+      grid.appendChild(cell);
+    });
+    ex.append(head, grid);
+    ex.setAttribute("aria-label", "See " + w[HANGUL] + ", " + meaningOf(i).short);
+    ex.addEventListener("click", () => selectAndFly(i));
+    box.appendChild(ex);
+  }
+
+  if (map) box.appendChild(el("p", "legend", "Drag, or swipe with two fingers, to turn the map; pinch or scroll to zoom. " +
+    "Click a group's name to see its words in layers, then scroll to move through them."));
+  const more = el("button", "intro-more", "More about Hanja Roots →");
+  more.type = "button";
+  more.addEventListener("click", () => openAbout());
+  box.appendChild(more);
   panel.appendChild(box);
 }
 
@@ -666,6 +692,7 @@ function select(i) {
   panel.scrollTop = 0;
 
   panel.classList.add("has-word");
+  document.body.classList.remove("intro-showing");
 
   // The English meaning, as the panel's heading
   const meaning = meaningOf(i);
@@ -830,9 +857,7 @@ function soundCard(o) {
 }
 function missingCard(lang, text) {
   const card = el("div", "lang-card missing");
-  const labelRow = el("div", "lang-label-row");
-  labelRow.appendChild(el("span", "lang-label", lang));
-  card.append(labelRow, el("div", "lang-def", text));
+  card.appendChild(el("div", "lang-def", text));   // "Not a word in Japanese" says it all
   return card;
 }
 
@@ -1104,9 +1129,14 @@ function resetGallery() {
   $("list-wrap").scrollTop = 0;
   $("detail").scrollTop = 0;
   window.scrollTo(0, 0);
+  showWelcome();
 }
 $("home").addEventListener("click", resetGallery);
-$("about-nav").addEventListener("click", () => openAbout());
+// Contents links on the About page scroll to their section (the address bar's # is used for routing, so no plain anchors)
+document.querySelectorAll("[data-jump]").forEach(a => a.addEventListener("click", e => {
+  e.preventDefault();
+  $(a.dataset.jump).scrollIntoView({ behavior: "smooth", block: "start" });
+}));
 
 let resizeTimer = null;
 window.addEventListener("resize", () => {
@@ -1217,7 +1247,6 @@ function route() {
   $("word-page").hidden = !sub;
   $("word-content").hidden = !(i >= 0);
   $("about-content").hidden = !about;
-  $("about-nav").setAttribute("aria-pressed", String(about));
   [document.querySelector(".topbar"), document.querySelector(".layout")].forEach(e => { e.hidden = sub; });
   pageIndex = i;
 
@@ -1435,6 +1464,32 @@ renderIntro();
 startMap3D();
 refresh();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
+
+// ---------- Welcome ----------
+// On arrival, the words are covered by a pale layer with the one thing to know. Any click, tap, or key fades it away.
+function showWelcome() {
+  const w = $("welcome");
+  w.hidden = false;
+  document.body.classList.add("welcoming");   // the title in the top bar waits until the welcome is gone
+  w.classList.remove("gone");
+  setTimeout(() => {   // listen from the next moment, so the click that brought it back doesn't close it
+    document.addEventListener("pointerdown", hideWelcome, { once: true, capture: true });
+    document.addEventListener("keydown", hideWelcome, { once: true, capture: true });
+  }, 0);
+}
+function hideWelcome(e) {
+  const w = $("welcome");
+  document.removeEventListener("pointerdown", hideWelcome, { capture: true });
+  document.removeEventListener("keydown", hideWelcome, { capture: true });
+  if (w.hidden) return;
+  if (e && e.type === "pointerdown" && w.contains(e.target)) e.preventDefault();   // a click on the layer only closes it
+  w.classList.add("gone");
+  document.body.classList.remove("welcoming");
+  setTimeout(() => { if (w.classList.contains("gone")) w.hidden = true; }, 450);
+}
+$("welcome").addEventListener("click", e => e.stopPropagation());
+if (window.matchMedia("(hover: none)").matches) document.querySelector("#welcome .welcome-hint").textContent = "Tap anywhere to start";
+if (!location.hash) showWelcome();
 
 // ---------- No orphans ----------
 // Keeps the last two words of every paragraph, list item, and heading together, so a line never ends with one

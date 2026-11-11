@@ -53,19 +53,38 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
+  --bar-gap: 14px;
+  gap: 10px var(--bar-gap);
   padding: 14px 24px;
   border-bottom: 1px solid #000;
 }
 
 .topbar h1 {
-  margin: 0 14px 0 0;
+  margin: 0;
   font-size: 18px;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .topbar button { padding: 5px 10px; font-size: 14px; white-space: nowrap; }
+/* Title, with About tucked beside it: an About button opens out to the right when the pointer is over the title
+   (or the title or About has keyboard focus), pushing the search bar along, and folds away again after. On touch screens, which can't
+   hover, it stays open. */
+.topbar .brand { flex: none; display: flex; align-items: center; margin-right: 14px; }
+.topbar .brand h1 { margin: 0; }
+.topbar .about-slot {
+  display: flex; max-width: 0; margin-left: 0; overflow: hidden; opacity: 0;
+  transition: max-width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+}
+/* Keyboard focus keeps it open; a mouse click on the title doesn't (so it folds away once the pointer leaves) */
+.topbar .brand:hover .about-slot, .topbar .brand:has(:focus-visible) .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; }
+.topbar #about-open { padding: 4px 10px; font-size: 13px; white-space: nowrap; }
+@media (hover: none) { .topbar .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; } }
+
+/* Map and List as icons */
+.view-switch button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 32px; padding: 0; }
+.view-switch svg { width: 18px; height: 18px; }
+
 /* The title doubles as a way back to the start */
 .topbar h1 #home { padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: 1.6; }
 .topbar h1 #home:hover { text-decoration: underline; text-underline-offset: 4px; }
@@ -73,8 +92,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 /* The same width as the suggestions that open below it */
 .search-wrap {
   position: relative;
-  flex: 0 0 auto;
-  width: 300px;
+  flex: 0 1 300px;
+  min-width: 170px;
 }
 
 #search {
@@ -183,9 +202,19 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   display: flex;
 }
 
-#view {
+/* The top bar and the words share the left column; the side panel takes the whole right side, top to bottom */
+.main-col {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#view {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;   /* nothing inside may stretch the page; the list scrolls on its own */
   display: flex;
   flex-direction: column;
 }
@@ -335,7 +364,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .card .ko { font-size: 18px; }
 .card .roman { font-size: 13px; color: #555; }
 .card .gloss { font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card .tags { margin-top: 8px; display: flex; gap: 5px; height: 10px; }
+.card .tags { position: relative; margin-top: 8px; display: flex; gap: 5px; height: 10px; }
 
 #list-end {
   text-align: center;
@@ -419,51 +448,129 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 
 /* Intro shown when no word is selected */
 #detail .intro p { line-height: 1.5; }
-#detail .intro { display: flex; flex-direction: column; min-height: 100%; padding: 8px 4px 0; }
+#detail .intro { display: flex; flex-direction: column; min-height: 100%; padding: 24px 4px 0; }
 #detail .intro p { margin: 0 0 14px; }
-#detail .intro-title { margin: 0 0 22px; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; }
+#detail .intro-title { margin: 0 0 16px; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; }
 #detail .intro-lead { font-size: 16px; }
 
 /* What each language calls the characters: one row per language */
-#detail .char-names { margin: 4px 0 26px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+#detail .char-names { margin: 4px 0 18px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
 #detail .char-name {
-  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lang count" "say word";
-  align-items: baseline; gap: 8px 12px; padding: 14px 0; border-bottom: 1px solid #ddd;
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lang lang" "say word";
+  align-items: baseline; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid #ddd;
 }
 #detail .char-name:last-child { border-bottom: 0; }
 #detail .char-name-lang { grid-area: lang; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; }
-#detail .char-name-count { grid-area: count; justify-self: end; font-size: 12px; color: #666; font-variant-numeric: tabular-nums; }
-#detail .char-name-say { grid-area: say; font-size: 26px; font-weight: 500; }
+#detail .char-name-say { grid-area: say; font-size: 24px; font-weight: 500; }
 #detail .char-name-word { grid-area: word; justify-self: end; font-size: 16px; color: #555; }
 
-/* The call to action sits at the bottom of the panel, apart from everything else */
-#detail .intro-cta { margin: auto 0 0 !important; padding-top: 24px; font-weight: 600; font-size: 16px; }
-#detail .legend { font-size: 13px; color: #333; }
+/* The example word: one word read in four languages; clicking it opens the word */
+#detail .intro-example { display: block; width: 100%; margin: 0 0 18px; padding: 12px 14px 14px; border: 0; background: #f4f4f4; text-align: left; }
+#detail .intro-example:hover { background: #ebebeb; }
+#detail .ex-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+#detail .ex-ko { font-size: 22px; }
+#detail .ex-sub { font-size: 15px; color: #555; }
+#detail .ex-grid { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+#detail .ex-cell { display: flex; flex-direction: column; }
+#detail .ex-lang { font-size: 11px; color: #666; }
+#detail .ex-say { font-size: 15px; }
 
-/* ---------- About page ---------- */
+#detail .legend { font-size: 13px; color: #333; }
+#detail .intro-more { align-self: flex-start; margin-top: 4px; padding: 8px 14px; font-size: 14px; }
+
+/* ---------- About page: contents on the left, wide sections on the right ---------- */
 
 #about-content {
-  max-width: 760px;
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 56px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 32px 24px 72px;
+  padding: 48px 40px 96px;
   line-height: 1.55;
 }
+#about-content[hidden] { display: none; }
 
-#about-content h1 { margin: 0 0 16px; font-size: clamp(30px, 5vw, 44px); font-weight: 600; line-height: 1.15; }
+.about-toc { position: sticky; top: 100px; align-self: start; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.about-toc-title { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #555; }
+.about-toc a { color: #333; text-decoration: none; }
+.about-toc a:hover { color: #000; text-decoration: underline; text-underline-offset: 4px; }
+
+.about-hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 48px; align-items: center; padding-bottom: 48px; }
+#about-content h1 { margin: 0 0 20px; font-size: clamp(36px, 5vw, 56px); font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; }
 #about-content h1:focus { outline: none; }
-#about-content > p:first-of-type { font-size: 18px; }
-#about-content h3 { margin: 36px 0 8px; padding-top: 14px; border-top: 1px solid #000; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-#about-content ul { padding-left: 20px; }
-#about-content li { margin-bottom: 8px; }
-#about-content table.coverage { border-collapse: collapse; margin: 4px 0 16px; font-size: 15px; font-variant-numeric: tabular-nums; }
-#about-content .coverage th, #about-content .coverage td { padding: 6px 18px 6px 0; border-bottom: 1px solid #ddd; text-align: left; }
-#about-content .coverage th { font-size: 13px; font-weight: 600; border-bottom-color: #000; }
-#about-content .coverage td + td, #about-content .coverage th + th { text-align: right; }
-#about-content .coverage tr.total td { font-weight: 600; border-top: 1px solid #000; }
+.about-lead { margin: 0; font-size: 20px; line-height: 1.5; }
+.about-glyph { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 20px; border: 1px solid #000; }
+.about-glyph-chars { font-size: 96px; line-height: 1; }
+.about-glyph-names { display: grid; grid-template-columns: repeat(2, auto); gap: 4px 24px; font-size: 16px; }
+.about-glyph-names b { font-weight: 500; text-align: center; }
 
-/* ---------- Word page ---------- */
+.about-section { padding: 28px 0 44px; border-top: 1px solid #000; scroll-margin-top: 80px; }
+.about-section h2 { margin: 0 0 22px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.about-section p { margin: 0 0 14px; }
 
-#detail .open-page { display: block; margin: 0 0 12px; }
+.about-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; }
+.about-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 26px; }
+.about-big div { display: flex; flex-direction: column; gap: 4px; }
+.about-big b { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.about-big span { font-size: 13px; color: #444; line-height: 1.35; }
+.about-bars-title { font-size: 12px !important; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #555; margin-bottom: 10px !important; }
+.about-bars { display: flex; flex-direction: column; gap: 10px; }
+.about-bar { display: grid; grid-template-columns: 90px minmax(0, 1fr) 120px; align-items: center; gap: 12px; font-size: 14px; }
+.about-bar > span:last-child { text-align: right; color: #333; font-variant-numeric: tabular-nums; }
+.about-bar .bar { height: 12px; background: #eee; }
+.about-bar .bar i { display: block; height: 100%; }
+.about-bar .bar i.lang-z { background: var(--zh); }
+.about-bar .bar i.lang-j { background: var(--ja); }
+.about-bar .bar i.lang-v { background: var(--vi); }
+.about-bar .bar i.all { background: #000; }
+.about-bars-note { margin-top: 10px !important; font-size: 12px; color: #666; }
+
+.about-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
+.about-cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.about-card { padding: 16px 0 6px; border-top: 1px solid #ddd; }
+.about-card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.about-card p { font-size: 14.5px; color: #222; }
+
+.about-terms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; margin: 0; }
+.about-terms div { padding: 16px 0 10px; border-top: 1px solid #ddd; }
+.about-terms dt { margin-bottom: 4px; font-weight: 600; }
+.about-terms dd { margin: 0; font-size: 14.5px; color: #222; }
+
+.about-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
+.about-sources > div { padding: 16px 0 6px; border-top: 1px solid #ddd; }
+.about-sources h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.about-sources p { font-size: 14px; color: #222; }
+.about-fineprint { margin-top: 18px !important; font-size: 13px; color: #555; }
+
+@media (max-width: 1100px) {
+  #about-content { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 32px 28px 72px; }
+  .about-toc { position: static; flex-direction: row; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 32px; }
+  .about-toc-title { width: 100%; }
+  .about-cards, .about-terms, .about-sources { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  #about-content { padding: 24px 16px 56px; }
+  .about-hero, .about-split { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .about-glyph { flex-direction: row; justify-content: center; gap: 24px; padding: 18px; }
+  .about-glyph-chars { font-size: 64px; }
+  .about-cards, .about-cards.two, .about-terms, .about-sources { grid-template-columns: minmax(0, 1fr); }
+  .about-big b { font-size: 24px; }
+  .about-bar { grid-template-columns: 78px minmax(0, 1fr) 104px; gap: 8px; font-size: 13px; }
+}
+
+/* While the side panel shows the intro (with its own big title), the top bar's title folds away and the search bar
+   moves left into its place; it comes back once a word is selected */
+.topbar .brand {
+  max-width: 420px; overflow: hidden;
+  transition: max-width 0.3s ease, margin-right 0.3s ease, opacity 0.25s ease, visibility 0s linear 0s;
+}
+@media (min-width: 901px) {   /* only when the side panel (and its title) sits beside the words */
+  body.intro-showing .topbar .brand {
+    max-width: 0; margin-right: calc(-1 * var(--bar-gap)) !important; opacity: 0; visibility: hidden;   /* also cancels the gap after it */
+    transition: max-width 0.3s ease, margin-right 0.3s ease, opacity 0.2s ease, visibility 0s linear 0.3s;
+  }
+}
 
 #word-page {
   flex: 1;
@@ -490,7 +597,6 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
   font-size: 18px; font-weight: 600; cursor: pointer;   /* the site's name doubles as the way back to the gallery */
 }
 .page-bar #back.page-site:hover { text-decoration: underline; background: none; }
-#about-nav[aria-pressed="true"] { background: #000; color: #fff; }
 
 #word-content {
   max-width: 1120px;
@@ -615,7 +721,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 .word-chip:hover { border-color: #000; background: #fff; }
 .chip-ko { white-space: nowrap; }
 .chip-en { flex: 1; min-width: 0; font-size: 13px; color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip-tags { display: flex; gap: 4px; flex: none; }
+.chip-tags { position: relative; display: flex; gap: 4px; flex: none; }
 .char-link { margin: 10px 0 0; font-size: 13px; }
 
 .page-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -625,6 +731,24 @@ details.voices summary { cursor: pointer; }
 
 /* ---------- Narrow screens ---------- */
 
+@media (min-width: 641px) and (max-width: 1260px) {
+  /* With the side panel beside it, the top bar is narrow: Random shrinks to its icon so everything stays on one row */
+  .topbar { flex-wrap: nowrap; --bar-gap: 12px; gap: 10px var(--bar-gap); }
+  .topbar .brand { margin-right: 4px; }
+  .topbar .random-label { display: none; }
+  .topbar .random-link { font-size: 18px; padding: 2px 4px; }
+}
+
+@media (min-width: 901px) and (max-width: 1000px) {
+  /* Narrowest beside the side panel: two rows, the title with Map/List, then search with Random */
+  .topbar { flex-wrap: wrap; }
+  .topbar .brand { order: 1; }
+  .topbar .view-switch { order: 2; }
+  .topbar .view-switch { margin-left: auto; }
+  .search-wrap { order: 4; flex: 1 1 calc(100% - 60px); }   /* always on the second row, whether About is open or not */
+  .topbar .random-link { order: 5; }
+}
+
 @media (max-width: 1100px) {
   /* The count drops below the filters when they no longer fit beside it */
   .filter-row { padding: 10px 16px; }
@@ -633,9 +757,8 @@ details.voices summary { cursor: pointer; }
 
 @media (max-width: 640px) {
   /* Phones: title and About; search and Random; view switch; then the filters */
-  .topbar { gap: 8px; padding: 10px 16px; }
-  .topbar h1 { flex: 1 1 auto; margin: 0; }
-  #about-open { order: 2; }
+  .topbar { --bar-gap: 8px; gap: 8px; padding: 10px 16px; }
+  .topbar .brand { flex: 1 1 100%; width: auto; margin: 0; }
   .search-wrap { order: 3; flex: 1 1 auto; width: auto; }
   #search { font-size: 16px; }   /* 16px or more, so phones don't zoom in when the box is tapped */
   .topbar .random-link { order: 4; }
@@ -648,12 +771,12 @@ details.voices summary { cursor: pointer; }
 @media (max-width: 900px) {
   html, body { height: auto; }
   .layout { flex-direction: column; }
+  .main-col { flex: none; }
   #map-wrap { flex: none; height: 70vh; }
   #list-wrap { flex: none; max-height: 75vh; }
   #detail { width: auto; border-left: 0; border-top: 1px solid #000; }
   #word-page { overflow: visible; }
   #word-content { padding: 20px 16px 48px; }
-  #about-content { padding: 24px 16px 56px; }
   .sound-row { grid-template-columns: repeat(2, 1fr); }
   .sound-roman { font-size: 20px; }
 }
@@ -667,7 +790,8 @@ details.voices summary { cursor: pointer; }
 /* ---------- Side panel for a selected word: one card per language, each a play button ---------- */
 /* Every card has the same parts in the same order: label, (switch), word, reading, meaning, speaker */
 #detail { position: relative; }
-#detail.has-word { padding: 0; }
+/* A selected word: the English heading, then a box for each language, then See full breakdown pinned to the bottom */
+#detail.has-word { padding: 0; display: flex; flex-direction: column; }
 #detail .close-circle {
   position: absolute; top: 14px; right: 14px; z-index: 2;
   width: 30px; height: 30px; padding: 0; border: 1.5px solid #000; border-radius: 50%;
@@ -675,15 +799,15 @@ details.voices summary { cursor: pointer; }
 }
 #detail .close-circle:hover { background: #000; color: #fff; }
 
-.panel-head { padding: 22px 20px 18px; border-bottom: 1px solid #000; }
+.panel-head { padding: 40px 20px 22px; }
 #detail .panel-en { margin: 0; font-size: 32px; font-weight: 600; line-height: 1.15; }
 #detail .panel-en.borrowed { font-weight: 500; }
 .panel-note { margin: 6px 0 0; font-size: 13px; color: #555; line-height: 1.4; }
 
 .lang-card {
-  position: relative; display: block;
-  padding: 16px 66px 18px 20px;
-  border-bottom: 1px solid #000; background: #fff; color: #000; cursor: pointer;
+  position: relative; display: block; flex: none;
+  margin: 0 20px 14px; padding: 14px 62px 16px 16px;
+  border: 1px solid #000; background: #fff; color: #000; cursor: pointer;
 }
 .lang-card:hover { background: #f4f4f4; }
 .lang-card:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
@@ -696,10 +820,10 @@ details.voices summary { cursor: pointer; }
 .lang-status { margin-top: 4px; font-size: 12px; color: #666; }
 .lang-status:empty { display: none; }
 .lang-status.error { color: #a00; }
-.lang-card.missing { cursor: default; color: #999; }
+/* Languages without the word: a small grey box at the end, just the note */
+.lang-card.missing { padding: 9px 14px; border-color: #ccc; color: #888; cursor: default; }
 .lang-card.missing:hover { background: #fff; }
-.lang-card.missing .lang-label { color: #999; }
-.lang-card.missing .lang-def { color: #999; }
+.lang-card.missing .lang-def { margin: 0; font-size: 13px; color: #888; }
 
 /* The Mandarin | Cantonese switch: a clearly pressable pair of buttons */
 .variant-switch {
@@ -727,7 +851,26 @@ details.voices summary { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .lang-card.is-playing .speaker .wave { animation: none; } }
 
 .full-breakdown {
-  display: block; width: 100%; padding: 14px 20px; border: 0; background: #fff;
-  text-align: left; font-size: 14px; font-weight: 500;
+  position: sticky; bottom: 0; flex: none;
+  display: block; width: 100%; margin-top: auto; padding: 16px 20px;
+  border: 0; border-top: 1px solid #000; background: #fff;
+  text-align: left; font-size: 15px; font-weight: 500;
 }
+.lang-card + .full-breakdown { margin-top: auto; }
+#detail.has-word .lang-card:last-of-type { margin-bottom: 20px; }
 .full-breakdown:hover { background: #f4f4f4; }
+
+/* ---------- Welcome: a pale layer over the words on arrival, with what to do; any click fades it ---------- */
+#welcome {
+  position: absolute; inset: 0; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.84);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  cursor: pointer;
+  opacity: 1; transition: opacity 0.4s ease;
+}
+#welcome.gone { opacity: 0; pointer-events: none; }
+#welcome .welcome-text { max-width: 520px; margin: 0; font-size: 28px; font-weight: 600; line-height: 1.3; text-align: center; }
+#welcome .welcome-hint { margin: 0; font-size: 14px; color: #555; }
+@media (max-width: 640px) { #welcome { padding: 24px; } #welcome .welcome-text { font-size: 22px; } }
