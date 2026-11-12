@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261114a">
+  <link rel="stylesheet" href="style.css?v=20261114l">
 </head>
 <body>
 
@@ -31,10 +31,10 @@
         </button>
       </div>
       <div class="view-switch" role="group" aria-label="View">
-        <button type="button" data-view="map" aria-pressed="false" aria-label="Map" title="Map">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>
+        <button type="button" data-view="map" aria-pressed="true" aria-label="Overview" title="Overview">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="5" r="1.7"/><circle cx="9.5" cy="5" r="1.7"/><circle cx="4.5" cy="12" r="1.7"/><circle cx="9.5" cy="12" r="1.7"/><circle cx="14.5" cy="12" r="1.7"/><circle cx="4.5" cy="19" r="1.7"/><circle cx="9.5" cy="19" r="1.7"/><circle cx="14.5" cy="19" r="1.7"/><circle cx="19.5" cy="19" r="1.7"/></svg>
         </button>
-        <button type="button" data-view="list" aria-pressed="true" aria-label="List" title="List">
+        <button type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5"/><rect x="13.5" y="4" width="6.5" height="6.5"/><rect x="4" y="13.5" width="6.5" height="6.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5"/></svg>
         </button>
       </div>
@@ -48,21 +48,21 @@
                 title="Show only (in the list) or highlight (in the map) the 2,183 words Korean learners meet first"><span class="switch-track" aria-hidden="true"></span>Everyday words</button>
         <p id="status" aria-live="polite"></p>
       </div>
-      <div id="map-wrap" hidden>
-        <canvas id="map" aria-label="Map of Korean words grouped by whether they are shared with Chinese, Japanese, and Vietnamese"></canvas>
-        <div id="tooltip" hidden></div>
-        <div class="map-tools" aria-label="Map controls">
-          <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
-          <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
-          <button type="button" id="reset-view">Reset view</button>
+      <div id="map-wrap">
+        <!-- Arrange by (Languages / Number of characters / Learner level): hidden for now; script.js still supports it if it comes back
+        <div class="map-bar">
+          <label class="map-bar-label" for="arrange">Arrange by</label>
+          <select id="arrange">
+            <option value="lang">Languages</option>
+            <option value="length">Number of characters</option>
+            <option value="level">Learner level</option>
+          </select>
         </div>
-        <p class="map-hint">Trackpad: swipe with two fingers to turn, hold Shift to move, pinch to zoom · Mouse: drag to turn, scroll to zoom, right-drag to move</p>
+        -->
+        <canvas id="map" aria-label="Every Korean word as a dot, arranged by the languages that share it, its number of characters, or its learner level"></canvas>
+        <button type="button" id="reset-view" hidden>Reset view</button>
       </div>
-      <div id="welcome" hidden>
-        <p class="welcome-text">Select a Korean word to see which languages share it, their definitions, and how they sound.</p>
-        <p class="welcome-hint">Click anywhere to start</p>
-      </div>
-      <div id="list-wrap">
+      <div id="list-wrap" hidden>
         <div id="list"></div>
         <p id="list-end"></p>
       </div>
@@ -145,18 +145,19 @@
             </div>
             <div class="about-card">
               <h3>Map</h3>
-              <p>A 3D space where each dot is a word. Each group of words is a cloud placed over the languages that share it, and the
-                 more languages share it, the higher it sits. A cloud's size follows its word count.</p>
+              <p>Every word as a dot, in bands by the languages that share it; a band's length follows its word count. A word shared
+                 by two or three languages flows through their colours.</p>
             </div>
             <div class="about-card">
               <h3>Moving around the map</h3>
-              <p>Trackpad: swipe with two fingers to turn, hold Shift while swiping to move, pinch to zoom. Mouse: drag to turn,
-                 scroll to zoom, right-drag to move. Zoom in close to read the nearest words.</p>
+              <p>Hover a dot to see its word, with lines to every word that shares one of its characters, and click to select it.
+                 Pinch, or hold Ctrl or ⌘ and scroll, to zoom in until the dots become words; swipe with two fingers or drag to move
+                 around, and double-click to see everything again.</p>
             </div>
             <div class="about-card">
               <h3>One group at a time</h3>
-              <p>Click a group's name, or choose languages, to see just that group as layers of word tiles, from everyday words to
-                 specialized ones, up to 80 to a layer. Scroll to move through them; after the last, the first comes round again.</p>
+              <p>Choose languages to see one group: in the map, the other dots fade back, so you can still see where the group sits
+                 among the rest. A search does the same with its matches.</p>
             </div>
             <div class="about-card">
               <h3>Choosing languages</h3>
@@ -280,11 +281,11 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261114a"></script>
-  <script src="characters.js?v=20261114a"></script>
-  <script src="romanize.js?v=20261114a"></script>
-  <script src="recordings.js?v=20261114a"></script>
-  <script src="speech.js?v=20261114a"></script>
-  <script src="script.js?v=20261114a"></script>
+  <script src="words.js?v=20261114l"></script>
+  <script src="characters.js?v=20261114l"></script>
+  <script src="romanize.js?v=20261114l"></script>
+  <script src="recordings.js?v=20261114l"></script>
+  <script src="speech.js?v=20261114l"></script>
+  <script src="script.js?v=20261114l"></script>
 </body>
 </html>

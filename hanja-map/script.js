@@ -1,6 +1,6 @@
 // Hanja Roots: Korean Hanja words, grouped by which other languages
 // (Chinese, Japanese, Vietnamese) use the same characters as a word.
-// Two views (an area-proportional map and a card list), filters by group,
+// Two views (a map of every word as a dot, and a card list), filters by group,
 // search in any language, and a side panel comparing a word across languages.
 
 // ---------- Data ----------
@@ -56,10 +56,9 @@ function sharedSentence(cat) {
 const $ = id => document.getElementById(id);
 const canvas = $("map");
 const ctx = canvas.getContext("2d");
-const tooltip = $("tooltip");
 
 const state = {
-  view: "list",      // "map" or "list" (the list is shown first, for now)
+  view: "map",       // "map" (the summary of every word, shown first) or "list"
   group: null,       // null = every word (no language buttons on), otherwise a category ("zjv", "zj", ...)
   query: "",
   matches: null,     // array of word indexes matching the search, best first; null = no search
@@ -204,7 +203,7 @@ function setGroup(cat) {
 
 function setView(view) {
   state.view = view;
-  if (!$("detail").classList.contains("has-word")) renderIntro();   // the intro's map how-to only shows in the map view
+  if (!$("detail").classList.contains("has-word")) renderIntro();
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   $("map-wrap").hidden = view !== "map";
   $("list-wrap").hidden = view !== "list";
@@ -217,36 +216,65 @@ function refresh() {
   else renderList();
 }
 
-// ---------- Map (flat 2D canvas) ----------
+// ---------- Map: every word as a dot ----------
+// Every word is a dot, in bands. Each band holds a set of words (for example, those shared with two languages) and has
+// the same number of rows as the others, so its length shows how many words it holds. Single-language words are dots
+// in that language's ink; a word shared by two or three languages carries a gradient through their inks, which slowly
+// flows across its block. Hover a dot for its word, with lines to every word that shares one of its characters.
+// Zoom in (pinch, or Ctrl/⌘ and scroll) and the dots become tiles with their words written on them.
 
+const MAP_INK = ["#B8412E", "#2F4F86", "#4F8C74"], MAP_SLOT = { z: 0, j: 1, v: 2 };
+const mapLevel = i => LEVEL_ORDER[WORDS[i][LEVEL]] ?? 3;
+const mapEverydayFirst = (a, b) => mapLevel(a) - mapLevel(b) || a - b;
+const MAP_BY_GROUP = {};
+WORDS.forEach((w, i) => (MAP_BY_GROUP[w[CAT]] = MAP_BY_GROUP[w[CAT]] || []).push(i));
+Object.values(MAP_BY_GROUP).forEach(a => a.sort(mapEverydayFirst));
 
-// How a word looks in the map: 0 faded (not in the current filter), 1 normal, 2 highlighted
-function lookOf(i) {
-  const w = WORDS[i];
-  if (state.group !== null && w[CAT] !== state.group) return 0;
-  if (state.matchSet) return state.matchSet.has(i) ? 2 : 0;
-  if (state.everyday) return isEveryday(w) ? 2 : 0;
-  return 1;
+// The gradient for each combination of languages, in steps
+const MAP_STEPS = 48, MAP_GRAD = {};
+["zj", "jv", "zv", "zjv"].forEach(g => {
+  const rgb = Array.from(g).map(c => { const h = MAP_INK[MAP_SLOT[c]]; return [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)); });
+  MAP_GRAD[g] = Array.from({ length: MAP_STEPS }, (_, b) => {
+    const q = b / MAP_STEPS * rgb.length, a = Math.floor(q) % rgb.length, n = (a + 1) % rgb.length;
+    const f = q - Math.floor(q), e = f * f * (3 - 2 * f);
+    return "rgb(" + rgb[a].map((v, k) => Math.round(v + (rgb[n][k] - v) * e)).join(",") + ")";
+  });
+});
+const MAP_STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Space around the field, and how much taller than the canvas's own shape it is laid out (below 1 = taller and narrower)
+const MAP_PAD = { left: 30, right: 80, top: 22, bottom: 44 }, MAP_ASPECT = 0.9;
+
+// The ways to arrange the dots: each is a list of bands, and each band a list of blocks
+const MAP_LEVELS = ["Beginner", "Intermediate", "Advanced", "No learner level"];
+const mapSectionCache = {};
+function mapSections(name) {
+  if (mapSectionCache[name]) return mapSectionCache[name];
+  const block = (cat, idx, label) => ({ cat, idx, label });
+  const byLanguages = keep => GROUP_ORDER.map(g => block(g, (MAP_BY_GROUP[g] || []).filter(keep), groupName(g))).filter(b => b.idx.length);
+  let secs;
+  if (name === "length") {
+    secs = [2, 3, 4, 5].map(n => ({ title: n === 5 ? "5 or more characters" : n + " characters",
+      blocks: byLanguages(i => n === 5 ? WORDS[i][HANJA].length >= 5 : WORDS[i][HANJA].length === n) }));
+  } else if (name === "level") {
+    secs = MAP_LEVELS.map((title, n) => ({ title, blocks: byLanguages(i => mapLevel(i) === n) }));
+  } else {
+    secs = [
+      { title: "Shared with all three", blocks: [block("zjv", MAP_BY_GROUP.zjv || [], "")] },
+      { title: "Shared with two", blocks: ["zj", "jv", "zv"].map(g => block(g, MAP_BY_GROUP[g] || [], groupName(g))) },
+      { title: "Shared with one language", blocks: ["j", "z", "v"].map(g => block(g, MAP_BY_GROUP[g] || [], groupName(g))) }
+    ];
+  }
+  return (mapSectionCache[name] = secs);
 }
 
-function showTooltip(i, x, y) {
-  if (i < 0) { tooltip.hidden = true; return; }
-  const wrap = $("map-wrap");
-  tooltip.textContent = WORDS[i][HANGUL] + " (" + KO_ROMAN[i] + ") " + WORDS[i][HANJA] + " · " + meaningOf(i).short;
-  tooltip.hidden = false;
-  tooltip.style.left = Math.max(4, Math.min(x + 14, wrap.clientWidth - tooltip.offsetWidth - 4)) + "px";
-  tooltip.style.top = Math.min(y + 16, wrap.clientHeight - 28) + "px";
-}
-
-function redrawMap() { draw(); }
-
-function relayoutMap() {
-  buildLayout(); draw();
-}
-
-function selectAndFly(i) { select(i); }
-
-// ---------- Map layout ----------
+let mapArrange = "lang";
+let mapCam = { s: 1, x: 0, y: 0 }, mapFit = null, mapAnim = null, mapCamAnim = null, mapRaf = 0, mapFlowT = 0;
+let mapHover = -1, mapRel = null;
+const mapCur = { X: new Float32Array(WORDS.length), Y: new Float32Array(WORDS.length) };
+const mapFrom = { X: new Float32Array(WORDS.length), Y: new Float32Array(WORDS.length) };
+const mapDelay = new Float32Array(WORDS.length);   // dots set off at slightly different times when the arrangement changes
+{ const rand = seededRandom(9); for (let i = 0; i < WORDS.length; i++) mapDelay[i] = rand(); }
 
 function seededRandom(seed) {
   return () => {
@@ -255,166 +283,359 @@ function seededRandom(seed) {
   };
 }
 
-function buildLayout() {
-  const wrap = $("map-wrap");
-  const width = wrap.clientWidth, height = wrap.clientHeight;
-  if (!width || !height) return;
+// Words that share a character with word i
+let mapCharWords = null;
+function mapRelatives(i) {
+  if (!mapCharWords) {
+    mapCharWords = new Map();
+    WORDS.forEach((w, j) => new Set(w[HANJA]).forEach(c => { if (!mapCharWords.has(c)) mapCharWords.set(c, []); mapCharWords.get(c).push(j); }));
+  }
+  const s = new Set();
+  new Set(WORDS[i][HANJA]).forEach(c => (mapCharWords.get(c) || []).forEach(j => s.add(j)));
+  s.delete(i);
+  return s;
+}
+
+// A word's colour: its language's ink, or, if two or three languages share it, its place in their flowing gradient
+function mapColor(i) {
+  const cat = WORDS[i][CAT];
+  if (cat.length === 1) return MAP_INK[MAP_SLOT[cat]];
+  const q = ((layout.P[i] - mapFlowT) % 1 + 1) % 1;
+  return MAP_GRAD[cat][Math.floor(q * MAP_STEPS) % MAP_STEPS];
+}
+
+// In the current filter, search, and Everyday setting; other words fade
+function mapStrong(i) {
+  const w = WORDS[i];
+  if (state.group !== null && w[CAT] !== state.group) return false;
+  if (state.matchSet) return state.matchSet.has(i);
+  if (state.everyday) return isEveryday(w);
+  return true;
+}
+
+// ---------- Map layout ----------
+
+// Lays the words out for the canvas's size; animate = glide the dots from where they are
+function buildLayout(animate) {
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return false;
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const circles = {};
-  const colX = [];
-  let s, top = state.group === null ? 36 : 16;
-  const labelH = 30, gap = 14, side = 16;
+  const secs = mapSections(mapArrange), n = WORDS.length, P0 = MAP_PAD;
+  const availW = W - P0.left - P0.right, availH = H - P0.top - P0.bottom;
+  // every band has R rows; each block fills down a column, then moves right
+  const measure = (R, hdr) => {
+    let w = 0, h = 0;
+    secs.forEach(s => { w = Math.max(w, s.blocks.reduce((a, b) => a + Math.ceil(b.idx.length / R) + 2, -2)); h += hdr * 1.5 + R; });
+    return { w, h: h - hdr * 0.5 };
+  };
+  const choose = hdr => {
+    let best = null;
+    for (let R = 8; R <= 600; R += 2) {
+      const m = measure(R, hdr), score = Math.abs(Math.log((m.w / m.h) / (availW / availH * MAP_ASPECT)));
+      if (!best || score < best.score) best = { R, score, ...m };
+    }
+    return best;
+  };
+  let hdr = 10, best = choose(hdr);
+  hdr = 44 / Math.min(availW / best.w, availH / best.h);   // headings about 44px tall on screen
+  best = choose(hdr);
+  const R = best.R;
 
-  if (state.group !== null) {
-    // One group, as large as fits
-    const count = COUNTS[state.group] || 0;
-    const r =Math.max(20, Math.min(width / 2 - side, (height - top - labelH - 10) / 2));
-    circles[state.group] = { x: width / 2, y: top + r, r };
-    s = r / Math.sqrt(Math.max(count, 1));
-  } else {
-    // All groups: every circle's area is proportional to its word count, r = s * sqrt(count)
-    const fits = s => {
-      let w = side * 2 + gap * (COLUMNS.length - 1);
-      for (const col of COLUMNS) {
-        const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
-        w += Math.max(...rs.map(r => 2 * r), 110);
-        const h = top + rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
-        if (h > height - 6) return false;
-      }
-      return w <= width;
-    };
-    let lo = 0, hi = 60;
-    for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-    s = lo;
-    const colWidths = COLUMNS.map(col => Math.max(...col.groups.map(g => 2 * s * Math.sqrt(COUNTS[g] || 0)), 110));
-    const totalW = colWidths.reduce((a, b) => a + b, 0) + gap * (COLUMNS.length - 1);
-    let x = (width - totalW) / 2;
-    COLUMNS.forEach((col, ci) => {
-      const cx = x + colWidths[ci] / 2;
-      colX.push(cx);
-      const rs = col.groups.map(g => s * Math.sqrt(COUNTS[g] || 0));
-      const colH = rs.reduce((sum, r) => sum + 2 * r + labelH, 0) + gap * (rs.length - 1);
-      let y = top + Math.max(0, (height - top - 6 - colH) / 2);
-      col.groups.forEach((g, gi) => {
-        circles[g] = { x: cx, y: y + rs[gi], r: rs[gi] };
-        y += 2 * rs[gi] + labelH + gap;
+  const X = new Float32Array(n), Y = new Float32Array(n), P = new Float32Array(n), heads = [];
+  let y = 0, width = 0;
+  secs.forEach(s => {
+    const total = s.blocks.reduce((a, b) => a + b.idx.length, 0);
+    heads.push({ kind: "band", x: 0, y, title: s.title.toUpperCase(), count: total.toLocaleString() });
+    const top = y + hdr;
+    let c = 0;
+    s.blocks.forEach((b, bi) => {
+      const cols = Math.ceil(b.idx.length / R);
+      if (b.label) heads.push({ kind: "block", x: c, w: cols, last: bi === s.blocks.length - 1, y: y + hdr * 0.62, cat: b.cat,
+        text: b.label + " " + b.idx.length.toLocaleString(), short: b.cat ? b.idx.length.toLocaleString() : b.label });
+      b.idx.forEach((i, k) => {
+        X[i] = c + Math.floor(k / R) + 0.5;
+        Y[i] = top + (k % R) + 0.5;
+        P[i] = (Math.floor(k / R) + (k % R) * 0.6) / (cols + R * 0.6);   // its place along the block's diagonal, for the gradient
       });
-      x += colWidths[ci] + gap;
+      c += cols + 2;
     });
-  }
-
-  // Place each word at a random spot in its circle (same seed, so positions are stable)
-  const rand = seededRandom(7);
-  const xs = new Float32Array(WORDS.length), ys = new Float32Array(WORDS.length);
-  const shown = new Uint8Array(WORDS.length);
-  WORDS.forEach((w, i) => {
-    let px, py;
-    do { px = rand() * 2 - 1; py = rand() * 2 - 1; } while (px * px + py * py > 1);
-    const c = circles[w[CAT]];
-    if (!c) return;
-    shown[i] = 1;
-    xs[i] = c.x + px * c.r * 0.97;
-    ys[i] = c.y + py * c.r * 0.97;
+    width = Math.max(width, c - 2);
+    y = top + R + hdr * 0.5;
   });
+  const height = y - hdr * 0.5;
 
-  const cell = 12, grid = new Map();
-  for (let i = 0; i < WORDS.length; i++) {
-    if (!shown[i]) continue;
-    const key = Math.floor(xs[i] / cell) + "," + Math.floor(ys[i] / cell);
-    if (!grid.has(key)) grid.set(key, []);
-    grid.get(key).push(i);
+  const grid = new Map();
+  for (let i = 0; i < n; i++) {
+    const key = Math.floor(X[i] / 4) + "," + Math.floor(Y[i] / 4);
+    let g = grid.get(key); if (!g) grid.set(key, g = []); g.push(i);
   }
 
-  const dot = Math.min(5, Math.max(0.8, s * 0.6));
-  layout = { width, height, circles, colX, xs, ys, shown, grid, cell, dot };
+  const s = Math.min(availW / width, availH / height);
+  const fit = { s, x: P0.left, y: P0.top };
+  const L = { W, H, name: mapArrange, X, Y, P, heads, grid, width, height };
+  if (animate && layout) {
+    mapFrom.X.set(mapCur.X); mapFrom.Y.set(mapCur.Y);
+    mapAnim = { t0: performance.now(), dur: 1100 };
+    mapCamAnim = { from: { ...mapCam }, to: fit, t0: performance.now(), dur: 900 };
+    mapHover = -1; mapRel = null;
+  } else {
+    mapCur.X.set(X); mapCur.Y.set(Y);
+    mapCam = fit; mapAnim = null; mapCamAnim = null;
+  }
+  layout = L;
+  mapFit = fit;
+  return true;
 }
+
+function relayoutMap() {
+  if (!layout || layout.W !== canvas.clientWidth || layout.H !== canvas.clientHeight || layout.name !== mapArrange) buildLayout(false);
+  mapSchedule();
+}
+function redrawMap() { mapSchedule(); }
+
+function setArrangement(name) {
+  if (name === mapArrange) return;
+  mapArrange = name;
+  if ($("arrange")) $("arrange").value = name;
+  if (buildLayout(true)) mapSchedule();
+}
+if ($("arrange")) $("arrange").addEventListener("change", e => setArrangement(e.target.value));   // the menu is hidden for now
 
 // ---------- Map drawing ----------
 
+const mapEase = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const mapShowing = () => state.view === "map" && !$("map-wrap").hidden && !document.body.classList.contains("on-subpage");
+
+function mapSchedule() { if (!mapRaf) mapRaf = requestAnimationFrame(mapTick); }
+function mapTick() {
+  mapRaf = 0;
+  if (!layout || !mapShowing()) return;
+  const now = performance.now();
+  if (mapAnim) {
+    const T = (now - mapAnim.t0) / mapAnim.dur;
+    for (let i = 0; i < WORDS.length; i++) {
+      const t = mapEase(Math.max(0, Math.min(1, T * 1.4 - mapDelay[i] * 0.4)));
+      mapCur.X[i] = mapFrom.X[i] + (layout.X[i] - mapFrom.X[i]) * t;
+      mapCur.Y[i] = mapFrom.Y[i] + (layout.Y[i] - mapFrom.Y[i]) * t;
+    }
+    if (T >= 1) { mapCur.X.set(layout.X); mapCur.Y.set(layout.Y); mapAnim = null; }
+  }
+  if (mapCamAnim) {
+    const a = mapCamAnim, t = mapEase(Math.min(1, (now - a.t0) / a.dur));
+    mapCam = { s: a.from.s * Math.pow(a.to.s / a.from.s, t), x: a.from.x + (a.to.x - a.from.x) * t, y: a.from.y + (a.to.y - a.from.y) * t };
+    if (t >= 1) mapCamAnim = null;
+  }
+  if (!MAP_STILL) mapFlowT = now / 7000;   // one full turn of the gradient every 7 seconds
+  draw();
+  // keep going while the gradient flows (it stops by itself when the map isn't showing)
+  if (mapAnim || mapCamAnim || !MAP_STILL) mapSchedule();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// A word as a pill: Hangul, Hanja, and meaning. dark = the selected word.
+function mapPill(i, x, y, dark, extra) {
+  const { W } = layout, w = WORDS[i], s = mapCam.s;
+  const main = w[HANGUL] + "  " + w[HANJA] + "  ·  " + meaningOf(i).short;
+  ctx.font = "12px Inter, system-ui, sans-serif";
+  const ew = extra ? ctx.measureText(extra).width : 0;
+  ctx.font = '500 15px Inter, "Noto Sans KR", "Noto Sans TC", sans-serif';
+  const mw = ctx.measureText(main).width, pw = mw + ew + 28, ph = 32, off = Math.max(10, s * 0.6);
+  // kept clear of the canvas's edges by the site's side padding (30px, or 16px on phones), above the dot if there's room
+  const edge = window.innerWidth <= 640 ? 16 : 30, H = layout.H;
+  const px = Math.max(edge, Math.min(W - pw - edge, x - pw / 2));
+  const py = y - ph - off >= edge ? y - ph - off : Math.min(H - ph - edge, y + off);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(x, y, Math.max(4.5, s * 0.55), 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = dark ? "#000" : "#fffdf9";
+  roundRect(px, py, pw, ph, ph / 2); ctx.fill();
+  ctx.lineWidth = 1; ctx.stroke();
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillStyle = dark ? "#fff" : "#000";
+  ctx.fillText(main, px + 14, py + ph / 2 + 1);
+  if (extra) { ctx.font = "12px Inter, system-ui, sans-serif"; ctx.fillStyle = dark ? "#ccc" : "#4a453d"; ctx.fillText(extra, px + 14 + mw, py + ph / 2 + 1); }
+}
+
 function draw() {
   if (!layout) return;
-  const { width, height, circles, colX, xs, ys, shown, dot } = layout;
-  ctx.clearRect(0, 0, width, height);
+  const { W, H, heads } = layout, n = WORDS.length, s = mapCam.s;
+  const sx = i => mapCam.x + mapCur.X[i] * s, sy = i => mapCam.y + mapCur.Y[i] * s;
+  ctx.clearRect(0, 0, W, H);
 
-  const faint = [], strong = [];
-  for (let i = 0; i < WORDS.length; i++) {
-    if (!shown[i]) continue;
-    const isStrong = state.matchSet ? state.matchSet.has(i) : state.everyday ? isEveryday(WORDS[i]) : true;
-    (isStrong ? strong : faint).push(i);
-  }
-  const drawDots = (list, style) => {
-    ctx.fillStyle = style;
-    ctx.beginPath();
-    list.forEach(i => { ctx.moveTo(xs[i] + dot, ys[i]); ctx.arc(xs[i], ys[i], dot, 0, Math.PI * 2); });
-    ctx.fill();
-  };
-  drawDots(faint, "rgba(0,0,0,0.10)");
-  drawDots(strong, state.matchSet || state.everyday ? "rgba(0,0,0,0.85)" : "rgba(0,0,0,0.5)");
-
-  // Circles and labels
-  ctx.strokeStyle = "#000";
-  ctx.lineWidth = 1;
-  ctx.fillStyle = "#000";
-  ctx.textAlign = "center";
-  Object.entries(circles).forEach(([g, c]) => {
-    ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(c.r, 2), 0, Math.PI * 2); ctx.stroke();
-    ctx.font = "600 13px Inter, system-ui, sans-serif";
-    ctx.fillText(groupName(g), c.x, c.y + c.r + 15);
-    ctx.font = "12px Inter, system-ui, sans-serif";
-    ctx.fillText((COUNTS[g] || 0).toLocaleString() + " words", c.x, c.y + c.r + 28);
+  // headings: each band's title, and each block's languages and count
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  let lastEnd = -1e9;
+  heads.forEach(h => {
+    const x = mapCam.x + h.x * s, y = mapCam.y + h.y * s;
+    if (h.kind === "band") {
+      // small caps: the title in tracked capitals, then its count in grey
+      const bx = Math.max(x, 8);
+      ctx.letterSpacing = "0.08em";
+      ctx.font = '600 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#000";
+      ctx.fillText(h.title, bx, y + 16);
+      const tw = ctx.measureText(h.title).width;
+      ctx.letterSpacing = "0px";
+      ctx.font = '400 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#4a453d";
+      ctx.fillText("  ·  " + h.count, bx + tw, y + 16);
+      lastEnd = -1e9;
+      return;
+    }
+    // a block's label sits above it, within the room up to the next block (the last block may run to the edge);
+    // a narrower block gets a shorter label (its languages' dots and its count), and one too narrow for that gets none
+    ctx.font = "10.5px Inter, system-ui, sans-serif";
+    const dotsW = h.cat.length ? h.cat.length * 6.5 + 3.5 : 0;
+    const room = h.last ? W - 6 - x : (h.w + 1.5) * s;
+    let text = h.text;
+    if (dotsW + ctx.measureText(text).width > room) text = h.short;
+    if (dotsW + ctx.measureText(text).width > room || x < lastEnd + 6) return;
+    Array.from(h.cat).forEach((l, k) => { ctx.fillStyle = MAP_INK[MAP_SLOT[l]]; ctx.beginPath(); ctx.arc(x + 2.6 + k * 6.5, y + 5.4, 2.6, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = "#4a453d";
+    ctx.fillText(text, x + dotsW, y + 9);
+    lastEnd = x + dotsW + ctx.measureText(text).width;
   });
-  ctx.font = "600 14px Inter, system-ui, sans-serif";
-  if (state.group === null) {
-    COLUMNS.forEach((col, ci) => ctx.fillText(col.title, colX[ci], 20));
+
+  const rel = mapHover >= 0 ? mapRel : null;
+  const tiles = s >= 30 && !mapAnim;
+  const onScreen = (x, y, m) => x > -m && y > -m && x < W + m && y < H + m;
+
+  if (!tiles) {
+    // dots, batched by colour: faded ones first, then the rest
+    const r = Math.max(0.75, s * 0.36), faint = new Map(), strong = new Map();
+    for (let i = 0; i < n; i++) {
+      if (rel && rel.has(i)) continue;
+      const x = sx(i), y = sy(i);
+      if (!onScreen(x, y, 5)) continue;
+      const m = !rel && mapStrong(i) ? strong : faint, col = mapColor(i);
+      let b = m.get(col); if (!b) m.set(col, b = []); b.push(i);
+    }
+    const fill = (m, alpha) => {
+      ctx.globalAlpha = alpha;
+      m.forEach((b, col) => {
+        ctx.fillStyle = col; ctx.beginPath();
+        b.forEach(i => { const x = sx(i), y = sy(i); ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); });
+        ctx.fill();
+      });
+    };
+    fill(faint, rel ? 0.13 : 0.14);
+    fill(strong, 1);
+    ctx.globalAlpha = 1;
+    if (rel) {
+      // lines from the hovered word to every word that shares one of its characters
+      const hx = sx(mapHover), hy = sy(mapHover);
+      ctx.strokeStyle = "rgba(0,0,0,0.22)"; ctx.lineWidth = 0.7; ctx.beginPath();
+      let k = 0;
+      for (const j of rel) { if (k++ > 1200) break; ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
+      ctx.stroke();
+      const rr = Math.max(1.6, r * 1.4);
+      for (const j of rel) { ctx.fillStyle = mapColor(j); ctx.beginPath(); ctx.arc(sx(j), sy(j), rr, 0, Math.PI * 2); ctx.fill(); }
+    }
+  } else {
+    // zoomed in: each dot becomes a tile with its word
+    const size = s * 0.88, fs = Math.min(15, s * 0.26);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = '500 ' + fs.toFixed(1) + 'px "Noto Sans KR", sans-serif';
+    for (let i = 0; i < n; i++) {
+      const x = sx(i), y = sy(i);
+      if (!onScreen(x, y, s)) continue;
+      ctx.globalAlpha = rel ? (rel.has(i) || i === mapHover ? 1 : 0.15) : mapStrong(i) ? 1 : 0.18;
+      ctx.fillStyle = mapColor(i);
+      roundRect(x - size / 2, y - size / 2, size, size, Math.min(6, size * 0.12)); ctx.fill();
+      ctx.fillStyle = "#fff";
+      const t = WORDS[i][HANGUL];
+      ctx.fillText(s >= 46 || t.length <= 3 ? t : t.slice(0, 2) + "…", x, y);
+    }
+    ctx.globalAlpha = 1;
+    if (rel) {
+      const hx = sx(mapHover), hy = sy(mapHover);
+      ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1; ctx.beginPath();
+      for (const j of rel) { ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
+      ctx.stroke();
+    }
   }
 
-  // Selected word
-  if (state.selected >= 0 && shown[state.selected]) {
-    const x = xs[state.selected], y = ys[state.selected];
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, dot + 6, 0, Math.PI * 2); ctx.stroke();
-    const label = wordLabel(state.selected);
-    ctx.font = "500 15px Inter, system-ui, sans-serif";
-    const w = ctx.measureText(label).width + 12;
-    const lx = Math.min(Math.max(x - w / 2, 2), width - w - 2);
-    const ly = y - dot - 34 < 2 ? y + dot + 10 : y - dot - 34;
-    ctx.fillStyle = "#fffdf9"; ctx.fillRect(lx, ly, w, 24);
-    ctx.strokeRect(lx, ly, w, 24);
-    ctx.fillStyle = "#000"; ctx.textAlign = "left";
-    ctx.fillText(label, lx + 6, ly + 17);
+  // the selected word stays labelled; the hovered word gets a pill too
+  if (!mapAnim) {
+    if (state.selected >= 0 && state.selected !== mapHover) mapPill(state.selected, sx(state.selected), sy(state.selected), true, "");
+    if (mapHover >= 0) mapPill(mapHover, sx(mapHover), sy(mapHover), false,
+      rel ? "    " + rel.size.toLocaleString() + (rel.size === 1 ? " word shares" : " words share") + " a character" : "");
   }
+
+  // "Reset view" shows once the map has been zoomed or moved
+  const moved = mapFit && !mapCamAnim && (Math.abs(mapCam.s / mapFit.s - 1) > 0.02 || Math.abs(mapCam.x - mapFit.x) > 4 || Math.abs(mapCam.y - mapFit.y) > 4);
+  if ($("reset-view").hidden === !!moved) $("reset-view").hidden = !moved;
 }
 
 // ---------- Map interaction ----------
 
-function nearestWord(x, y) {
-  const { grid, cell, xs, ys } = layout;
-  const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
-  let best = -1, bestD = 8 * 8;
-  for (let gx = cx - 1; gx <= cx + 1; gx++) {
-    for (let gy = cy - 1; gy <= cy + 1; gy++) {
-      (grid.get(gx + "," + gy) || []).forEach(i => {
-        const d = (xs[i] - x) ** 2 + (ys[i] - y) ** 2;
+// The word nearest the pointer, within a few pixels
+function nearestWord(mx, my) {
+  if (!layout || mapAnim) return -1;
+  const wx = (mx - mapCam.x) / mapCam.s, wy = (my - mapCam.y) / mapCam.s, reach = Math.max(0.75, 7 / mapCam.s);
+  let best = -1, bestD = reach * reach;
+  for (let gx = Math.floor((wx - reach) / 4); gx <= Math.floor((wx + reach) / 4); gx++)
+    for (let gy = Math.floor((wy - reach) / 4); gy <= Math.floor((wy + reach) / 4); gy++)
+      (layout.grid.get(gx + "," + gy) || []).forEach(i => {
+        const d = (layout.X[i] - wx) ** 2 + (layout.Y[i] - wy) ** 2;
         if (d < bestD) { bestD = d; best = i; }
       });
-    }
-  }
   return best;
 }
 
-// The group whose name label (below its circle) is under the pointer;
-// with circles = true, also the group whose circle is under the pointer
-function groupAt(x, y, circles) {
-  for (const [g, c] of Object.entries(layout.circles)) {
-    const inCircle = (x - c.x) ** 2 + (y - c.y) ** 2 <= c.r ** 2;
-    const onLabel = Math.abs(x - c.x) < 80 && y > c.y + c.r && y < c.y + c.r + 32;
-    if (onLabel || (circles && inCircle)) return g;
-  }
-  return undefined;
+function mapSetHover(i) {
+  if (i === mapHover) return;
+  mapHover = i;
+  mapRel = i >= 0 ? mapRelatives(i) : null;
+  canvas.style.cursor = i >= 0 ? "pointer" : "";
+  mapSchedule();
+}
+
+// Keeps the field on screen: it can't be zoomed out past fitting the canvas, and its edges can't be moved past the
+// canvas's edges (with a small margin). A side that fits on screen stays where it sits when the whole field is shown.
+function mapClamp(c) {
+  if (!layout || !mapFit) return c;
+  const s = Math.max(mapFit.s, Math.min(90, c.s)), P0 = MAP_PAD;
+  const cw = layout.width * s, ch = layout.height * s;
+  const x = cw <= layout.W - P0.left - P0.right + 0.5 ? mapFit.x : Math.min(P0.left, Math.max(layout.W - P0.right - cw, c.x));
+  const y = ch <= layout.H - P0.top - P0.bottom + 0.5 ? mapFit.y : Math.min(P0.top, Math.max(layout.H - P0.bottom - ch, c.y));
+  return { s, x, y };
+}
+
+function mapZoomAt(mx, my, k) {
+  const s2 = Math.max(mapFit ? mapFit.s : 0.5, Math.min(90, mapCam.s * k)), f = s2 / mapCam.s;
+  mapCamAnim = null;
+  mapCam = mapClamp({ s: s2, x: mx - (mx - mapCam.x) * f, y: my - (my - mapCam.y) * f });
+  mapSchedule();
+}
+
+// Glides back to the whole field
+function mapResetView() {
+  if (!mapFit) return;
+  mapCamAnim = { from: { ...mapCam }, to: mapFit, t0: performance.now(), dur: 600 };
+  mapSchedule();
+}
+
+// Moves the view so the word is on screen, if it isn't
+function mapReveal(i) {
+  if (!layout) return;
+  const x = mapCam.x + layout.X[i] * mapCam.s, y = mapCam.y + layout.Y[i] * mapCam.s;
+  if (x > 40 && y > 40 && x < layout.W - 40 && y < layout.H - 40) return;
+  mapCamAnim = { from: { ...mapCam }, to: mapClamp({ s: mapCam.s, x: layout.W / 2 - layout.X[i] * mapCam.s, y: layout.H / 2 - layout.Y[i] * mapCam.s }), t0: performance.now(), dur: 600 };
+  mapSchedule();
+}
+function selectAndFly(i) {
+  select(i);
+  if (state.view === "map") mapReveal(i);
 }
 
 function pointer(e) {
@@ -422,41 +643,76 @@ function pointer(e) {
   return [e.clientX - rect.left, e.clientY - rect.top];
 }
 
-canvas.addEventListener("mousemove", e => {
-  if (!layout) return;
-  const [x, y] = pointer(e);
-  const i = nearestWord(x, y);
-  if (i >= 0) {
-    showTooltip(i, x, y);
-    canvas.style.cursor = "pointer";
+// Click a dot to select its word. Drag or swipe with two fingers to move; pinch, or Ctrl/⌘ and scroll, to zoom;
+// double-click to see the whole field again.
+const mapPointers = new Map();
+let mapDrag = null, mapPinch = null;
+canvas.addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  canvas.setPointerCapture(e.pointerId);
+  mapPointers.set(e.pointerId, pointer(e));
+  if (mapPointers.size === 2) {
+    const [a, b] = [...mapPointers.values()];
+    mapPinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) };
+    mapDrag = null;
+  } else {
+    mapDrag = { x: e.clientX, y: e.clientY, cx: mapCam.x, cy: mapCam.y, moved: false };
+  }
+});
+canvas.addEventListener("pointermove", e => {
+  const [mx, my] = pointer(e);
+  if (mapPointers.has(e.pointerId)) mapPointers.set(e.pointerId, [mx, my]);
+  if (mapPinch && mapPointers.size === 2) {
+    const [a, b] = [...mapPointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    mapZoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / mapPinch.d);
+    mapPinch.d = d;
     return;
   }
-  tooltip.hidden = true;
-  const g = state.group === null ? groupAt(x, y, false) : undefined;
-  canvas.style.cursor = g !== undefined ? "zoom-in" : "crosshair";
-  canvas.title = g !== undefined ? "View " + groupName(g) + " by itself" : "";
-});
-canvas.addEventListener("mouseleave", () => { tooltip.hidden = true; });
-canvas.addEventListener("click", e => {
-  if (!layout) return;
-  const [x, y] = pointer(e);
-  const i = nearestWord(x, y);
-  if (i >= 0) { select(i); return; }
-  if (state.group === null) {
-    const g = groupAt(x, y, false);
-    if (g !== undefined) setGroup(g);
+  if (mapDrag) {
+    const dx = e.clientX - mapDrag.x, dy = e.clientY - mapDrag.y;
+    if (mapDrag.moved || Math.abs(dx) + Math.abs(dy) > 4) {
+      mapDrag.moved = true;
+      canvas.classList.add("dragging");
+      mapCamAnim = null;
+      mapCam = mapClamp({ ...mapCam, x: mapDrag.cx + dx, y: mapDrag.cy + dy });
+      mapSetHover(-1);
+      mapSchedule();
+    }
+    return;
   }
+  if (e.pointerType === "mouse") mapSetHover(nearestWord(mx, my));
 });
-// Double-clicking a dot opens that word's page; double-clicking elsewhere in a circle views that group by itself
-canvas.addEventListener("dblclick", e => {
-  if (!layout) return;
-  const [x, y] = pointer(e);
-  const i = nearestWord(x, y);
-  if (i >= 0) { openWord(i); return; }
-  if (state.group !== null) return;
-  const g = groupAt(x, y, true);
-  if (g !== undefined) setGroup(g);
-});
+const mapPointerEnd = e => {
+  const tap = mapDrag && !mapDrag.moved && !mapPinch;
+  mapPointers.delete(e.pointerId);
+  if (mapPointers.size < 2) mapPinch = null;
+  if (tap && e.type === "pointerup") {
+    const [mx, my] = pointer(e), i = nearestWord(mx, my);
+    if (i >= 0) select(i);
+    else if (state.selected >= 0) deselect();   // a click off the dots clears the selected word
+  }
+  mapDrag = null;
+  canvas.classList.remove("dragging");
+};
+canvas.addEventListener("pointerup", mapPointerEnd);
+canvas.addEventListener("pointercancel", mapPointerEnd);
+canvas.addEventListener("pointerleave", e => { if (!mapDrag && e.pointerType === "mouse") mapSetHover(-1); });
+canvas.addEventListener("dblclick", e => { e.preventDefault(); mapResetView(); });
+// Two-finger swipe (or the scroll wheel) moves the view; pinch (or Ctrl/⌘ and scroll) zooms. When the field can't
+// move any further that way, the page scrolls as usual.
+canvas.addEventListener("wheel", e => {
+  const [mx, my] = pointer(e);
+  if (e.ctrlKey || e.metaKey) { e.preventDefault(); mapZoomAt(mx, my, Math.exp(-e.deltaY * 0.01)); return; }
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? layout.H : 1;
+  const next = mapClamp({ ...mapCam, x: mapCam.x - e.deltaX * unit, y: mapCam.y - e.deltaY * unit });
+  if (Math.abs(next.x - mapCam.x) < 0.01 && Math.abs(next.y - mapCam.y) < 0.01) return;
+  e.preventDefault();
+  mapCamAnim = null;
+  mapCam = next;
+  mapSetHover(-1);
+  mapSchedule();
+}, { passive: false });
+$("reset-view").addEventListener("click", mapResetView);
 
 // ---------- List view ----------
 
@@ -617,7 +873,6 @@ function renderIntro() {
   panel.classList.remove("has-word");
   document.body.classList.add("intro-showing");   // the panel shows the title, so the top bar's title steps aside
   panel.innerHTML = "";
-  const map = state.view === "map";
   const box = el("div", "intro");
   box.appendChild(el("h2", "intro-title", "The roots beneath Korean words"));
   box.appendChild(el("p", "intro-lead", "More than half of Korean vocabulary is built from Chinese characters. Korean, Chinese, " +
@@ -662,8 +917,6 @@ function renderIntro() {
     box.appendChild(ex);
   }
 
-  if (map) box.appendChild(el("p", "legend", "Drag, or swipe with two fingers, to turn the map; pinch or scroll to zoom. " +
-    "Click a group's name to see its words in layers, then scroll to move through them."));
   const more = el("button", "intro-more", "More about Hanja Roots →");
   more.type = "button";
   more.addEventListener("click", () => openAbout());
@@ -1176,7 +1429,7 @@ $("about-open").addEventListener("click", () => openAbout());
 $("page-about").addEventListener("click", () => openAbout());   // on word pages, About sits beside the title
 
 // The title in the top bar resets the gallery to how it looks on arrival: no search, no filters,
-// Everyday off, no word selected, the list view at the top
+// Everyday off, no word selected, the summary view
 function resetGallery() {
   $("search").value = "";
   delete $("search").dataset.random;
@@ -1189,11 +1442,10 @@ function resetGallery() {
   state.selected = -1;
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
   $("detail").classList.remove("has-word");
-  setView("list");   // also redraws the list and the intro
+  setView("map");   // also redraws the summary and the intro
   $("list-wrap").scrollTop = 0;
   $("detail").scrollTop = 0;
   window.scrollTo(0, 0);
-  showWelcome();
 }
 $("home").addEventListener("click", resetGallery);
 // Contents links on the About page scroll to their section (the address bar's # is used for routing, so no plain anchors)
@@ -1205,7 +1457,7 @@ document.querySelectorAll("[data-jump]").forEach(a => a.addEventListener("click"
 let resizeTimer = null;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (state.view === "map") { buildLayout(); draw(); } }, 150);
+  resizeTimer = setTimeout(() => { if (state.view === "map") relayoutMap(); }, 150);
 });
 
 // ---------- Sound history ----------
@@ -1532,32 +1784,6 @@ renderGroupButtons();
 renderIntro();
 refresh();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
-
-// ---------- Welcome ----------
-// On arrival, the words are covered by a pale layer with the one thing to know. Any click, tap, or key fades it away.
-function showWelcome() {
-  const w = $("welcome");
-  w.hidden = false;
-  document.body.classList.add("welcoming");   // the title in the top bar waits until the welcome is gone
-  w.classList.remove("gone");
-  setTimeout(() => {   // listen from the next moment, so the click that brought it back doesn't close it
-    document.addEventListener("pointerdown", hideWelcome, { once: true, capture: true });
-    document.addEventListener("keydown", hideWelcome, { once: true, capture: true });
-  }, 0);
-}
-function hideWelcome(e) {
-  const w = $("welcome");
-  document.removeEventListener("pointerdown", hideWelcome, { capture: true });
-  document.removeEventListener("keydown", hideWelcome, { capture: true });
-  if (w.hidden) return;
-  if (e && e.type === "pointerdown" && w.contains(e.target)) e.preventDefault();   // a click on the layer only closes it
-  w.classList.add("gone");
-  document.body.classList.remove("welcoming");
-  setTimeout(() => { if (w.classList.contains("gone")) w.hidden = true; }, 450);
-}
-$("welcome").addEventListener("click", e => e.stopPropagation());
-if (window.matchMedia("(hover: none)").matches) document.querySelector("#welcome .welcome-hint").textContent = "Tap anywhere to start";
-if (!location.hash) showWelcome();
 
 // ---------- No orphans ----------
 // Keeps the last two words of every paragraph, list item, and heading together, so a line never ends with one

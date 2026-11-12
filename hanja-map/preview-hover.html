@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Directions · Hanja Roots</title>
+  <!-- A standalone sketchbook of interactive directions, using the site's real data. Not linked from the site. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap">
+  <style>
+    :root { --paper: #faf8f3; --card: #fffdf9; --panel: #efe9dd; --hover: #f3eee4; --line: #d6cab4;
+            --zh: #B8412E; --ja: #2F4F86; --vi: #4F8C74; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { background: var(--paper); color: #000; font-family: Inter, "Noto Sans KR", system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; }
+    [hidden] { display: none !important; }
+    button { padding: 6px 10px; border: 1px solid #000; background: var(--card); color: #000; font: inherit; cursor: pointer; }
+    button:hover { background: var(--hover); }
+    button[aria-pressed="true"] { background: #000; color: #fff; }
+    .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #000; }
+    .bar .title { font-weight: 600; margin-right: 12px; }
+    .sep { width: 14px; }
+    .sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 10px 20px; font-size: 13px; }
+    .sub .hint { color: #4a453d; margin-left: auto; }
+    .tab { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+    .dz { background: var(--zh); } .dj { background: var(--ja); } .dv { background: var(--vi); } .d0 { box-shadow: inset 0 0 0 1px #c9bfae; }
+
+    #field-wrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    #field { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+    #field.dragging { cursor: grabbing; }
+
+    .pill { position: absolute; z-index: 5; pointer-events: none; display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 9px;
+            background: var(--card); border: 1px solid #000; border-radius: 999px; white-space: nowrap; font-size: 14px; transform: translate(-50%, -125%); }
+    .pill .slots { display: inline-flex; gap: 3px; }
+
+
+    #roots { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr) 220px; position: relative; }
+    #roots > div { overflow: auto; padding: 16px 20px 40px; position: relative; }
+    #rw-left { border-right: 1px solid #000; background: var(--panel); }
+    #rw-right { border-left: 1px solid #000; }
+    .rw-glyph { font-family: "Noto Sans TC", sans-serif; font-size: 120px; line-height: 1; font-weight: 500; }
+    .rw-read { font-size: 22px; margin-top: 8px; }
+    .rw-meaning { color: #4a453d; margin: 6px 0 14px; }
+    .rw-bars { display: grid; grid-template-columns: 76px 1fr 38px; gap: 6px 8px; align-items: center; font-size: 12px; }
+    .rw-bar { height: 8px; background: #e4dccd; } .rw-bar i { display: block; height: 100%; }
+    .rw-path { margin-top: 18px; font-size: 12px; color: #4a453d; }
+    .rw-path button { font-family: "Noto Sans TC", sans-serif; font-size: 16px; padding: 2px 6px; margin: 4px 4px 0 0; }
+    .rw-row { margin-bottom: 18px; }
+    .rw-row h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+    .rw-tiles { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rw-tile { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 8px; background: var(--card); border: 1px solid #000; font-size: 14px; cursor: pointer; }
+    .rw-tile:hover { background: var(--hover); }
+    .rw-tile .hj { font-family: "Noto Sans TC", sans-serif; }
+    .rw-tile .hj b { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .rw-tile .hj button { all: unset; cursor: pointer; padding: 0 1px; }
+    .rw-tile .hj button:hover { background: #000; color: #fff; }
+    .rw-pairs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rw-pairs button { font-family: "Noto Sans TC", sans-serif; padding: 2px 6px; line-height: 1.2; }
+    #rw-right h4, #rw-left h4 { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    #rw-input { width: 100px; padding: 6px 8px; border: 1px solid #000; background: var(--card); font: inherit; }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <span class="title">Hanja Roots · directions</span>
+    <button type="button" data-tab="field" aria-pressed="true">1 · Field</button>
+    <button type="button" data-tab="roots" aria-pressed="false">2 · Roots walk</button>
+  </div>
+
+  <section class="tab" id="tab-field">
+    <div class="sub">
+      <span>Arrange by</span>
+      <button type="button" data-arr="lang" aria-pressed="true">Languages</button>
+      <button type="button" data-arr="length" aria-pressed="false">Number of characters</button>
+      <button type="button" data-arr="level" aria-pressed="false">Learner level</button>
+      <button type="button" data-arr="ganada" aria-pressed="false">가나다 order</button>
+      <button type="button" data-arr="shuffle" aria-pressed="false">Shuffled</button>
+      <span class="sep"></span>
+      <button type="button" id="rel" aria-pressed="true">Show relatives on hover</button>
+      <span class="sep"></span>
+      <button type="button" id="zin" aria-label="Zoom in">+</button>
+      <button type="button" id="zout" aria-label="Zoom out">−</button>
+      <button type="button" id="zfit">Fit</button>
+      <span class="hint">Pinch or ⌘-scroll to zoom, drag or scroll to move. Zoom in and the dots turn into words. Click a word to open it.</span>
+    </div>
+    <div id="field-wrap"><canvas id="field"></canvas></div>
+  </section>
+
+  <section class="tab" id="tab-roots" hidden>
+    <div class="sub">
+      <span>Start from</span>
+      <input id="rw-input" placeholder="學 or 학" aria-label="A character, or its Korean reading">
+      <button type="button" id="rw-go">Go</button>
+      <button type="button" id="rw-random">Random character</button>
+      <span class="hint">Click any character in a word to walk to it. Click a word to open it.</span>
+    </div>
+    <div id="roots">
+      <div id="rw-left"></div>
+      <div id="rw-mid"></div>
+      <div id="rw-right"></div>
+    </div>
+  </section>
+
+  <script src="words.js"></script>
+  <script src="characters.js"></script>
+  <script>
+  // ---------- Shared ----------
+  const HANGUL = 0, HANJA = 1, KO = 2, CAT = 3, LEVEL = 4, ZH_M = 6, JP_M = 9, VI_M = 12;
+  const INK = { z: '#B8412E', j: '#2F4F86', v: '#4F8C74' }, INKS = [INK.z, INK.j, INK.v], SLOT = { z: 0, j: 1, v: 2 };
+  const LANG = { z: 'Chinese', j: 'Japanese', v: 'Vietnamese' };
+  const COMBOS = ['zjv', 'zj', 'jv', 'zv', 'j', 'z', 'v'];
+  const NAME = { zjv: 'All three', zj: 'Chinese + Japanese', jv: 'Japanese + Vietnamese', zv: 'Chinese + Vietnamese',
+    j: 'Japanese only', z: 'Chinese only', v: 'Vietnamese only' };
+  const LVN = { beginner: 0, intermediate: 1, advanced: 2 };
+  const N = WORDS.length;
+  const lv = i => LVN[WORDS[i][LEVEL]] ?? 3;
+  const everydayFirst = (a, b) => lv(a) - lv(b) || a - b;
+
+  const byGroup = {};
+  WORDS.forEach((w, i) => (byGroup[w[CAT]] = byGroup[w[CAT]] || []).push(i));
+  Object.values(byGroup).forEach(a => a.sort(everydayFirst));
+  // a dot takes its languages' inks in turn
+  const COLOR = new Uint8Array(N);
+  Object.entries(byGroup).forEach(([g, a]) => a.forEach((i, k) => { COLOR[i] = SLOT[g[k % g.length]]; }));
+
+  const short = m => (m || '').split(/[;,(]/)[0].trim();
+  function gloss(i) {
+    const w = WORDS[i];
+    if (w[KO]) return short(w[KO]);
+    for (const k of [JP_M, ZH_M, VI_M]) if (w[k]) return '≈ ' + short(w[k]);
+    return '';
+  }
+  const slotsHTML = cat => '<span class="slots">' + ['z', 'j', 'v'].map(l => '<span class="dot ' + (cat.includes(l) ? 'd' + l : 'd0') + '"></span>').join('') + '</span>';
+  const comboDots = cat => [...cat].map(l => '<span class="dot d' + l + '"></span>').join('');
+  const wordHref = i => 'index.html#word/' + encodeURIComponent(WORDS[i][HANGUL] + '_' + WORDS[i][HANJA]);
+  const openWord = i => window.open(wordHref(i), '_blank');
+
+  // words containing each character
+  const CHAR_WORDS = new Map();
+  WORDS.forEach((w, i) => new Set(w[HANJA]).forEach(c => { if (!CHAR_WORDS.has(c)) CHAR_WORDS.set(c, []); CHAR_WORDS.get(c).push(i); }));
+  const relatives = i => { const s = new Set(); new Set(WORDS[i][HANJA]).forEach(c => (CHAR_WORDS.get(c) || []).forEach(j => s.add(j))); s.delete(i); return s; };
+
+  document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    document.querySelectorAll('.tab').forEach(t => { t.hidden = t.id !== 'tab-' + b.dataset.tab; });
+    if (b.dataset.tab === 'field') F.resize();
+    if (b.dataset.tab === 'roots' && RW.cur === null) RW.go('學');
+  }));
+
+  // ---------- 1. Field ----------
+  const F = (() => {
+    const cv = document.getElementById('field'), ctx = cv.getContext('2d');
+    let W = 0, H = 0, arr = 'lang', layoutNow = null;
+    const cur = { X: new Float32Array(N), Y: new Float32Array(N) }, from = { X: new Float32Array(N), Y: new Float32Array(N) };
+    let anim = null, cam = { s: 1, x: 0, y: 0 }, camAnim = null, hover = -1, showRel = true, rel = null, raf = 0;
+    // Words shared by two or three languages: a gradient through their languages' inks, flowing across the block
+    const K = 48, GRAD = {};
+    const rgb = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+    ['zj', 'jv', 'zv', 'zjv'].forEach(g => {
+      const cs = [...g].map(l => rgb(INK[l]));
+      GRAD[g] = Array.from({ length: K }, (_, b) => {
+        const q = b / K * cs.length, a = Math.floor(q) % cs.length, n = (a + 1) % cs.length, f = q - Math.floor(q), e = f * f * (3 - 2 * f);
+        return 'rgb(' + cs[a].map((v, j) => Math.round(v + (cs[n][j] - v) * e)).join(',') + ')';
+      });
+    });
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let flowT = 0;
+    const colorOf = i => {
+      const p = layoutNow && layoutNow.P ? layoutNow.P[i] : -1;
+      if (p < 0) return INKS[COLOR[i]];
+      const q = ((p - flowT) % 1 + 1) % 1;
+      return GRAD[WORDS[i][CAT]][Math.floor(q * K) % K];
+    };
+    const flowing = () => !still && !cv.closest('.tab').hidden;
+    const delay = new Float32Array(N);
+    { let seed = 9; for (let i = 0; i < N; i++) { seed = (seed * 1664525 + 1013904223) >>> 0; delay[i] = seed / 4294967296; } }
+
+    function sections(name) {
+      const sub = (cat, idx, label) => ({ cat, idx, label });
+      if (name === 'lang') return [
+        { title: 'Shared with one language', subs: ['j', 'z', 'v'].map(g => sub(g, byGroup[g] || [], NAME[g])) },
+        { title: 'Shared with two', subs: ['zj', 'jv', 'zv'].map(g => sub(g, byGroup[g] || [], NAME[g])) },
+        { title: 'Shared with all three', subs: [sub('zjv', byGroup.zjv || [], '')] }];
+      if (name === 'length') return [2, 3, 4, 5].map(n => ({ title: n === 5 ? '5 or more characters' : n + ' characters',
+        subs: COMBOS.map(g => sub(g, (byGroup[g] || []).filter(i => n === 5 ? WORDS[i][HANJA].length >= 5 : WORDS[i][HANJA].length === n), NAME[g])).filter(s => s.idx.length) }));
+      if (name === 'level') return ['Beginner', 'Intermediate', 'Advanced', 'No learner level'].map((t, n) => ({ title: t,
+        subs: COMBOS.map(g => sub(g, (byGroup[g] || []).filter(i => lv(i) === n), NAME[g])).filter(s => s.idx.length) }));
+      if (name === 'ganada') {
+        const INIT = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ', bucket = {};
+        for (let i = 0; i < N; i++) { const c = WORDS[i][HANGUL].charCodeAt(0) - 0xAC00; const k = c >= 0 && c < 11172 ? INIT[Math.floor(c / 588)] : '?'; (bucket[k] = bucket[k] || []).push(i); }
+        return [...INIT].filter(k => bucket[k]).map(k => ({ title: k, subs: [sub('', bucket[k].sort((a, b) => WORDS[a][HANGUL].localeCompare(WORDS[b][HANGUL], 'ko')), '')] }));
+      }
+      const all = [...Array(N).keys()];
+      let seed = 4; for (let i = N - 1; i > 0; i--) { seed = (seed * 1664525 + 1013904223) >>> 0; const j = seed % (i + 1); [all[i], all[j]] = [all[j], all[i]]; }
+      return [{ title: 'All ' + N.toLocaleString('en-US') + ' words, shuffled', subs: [sub('', all, '')] }];
+    }
+
+    // bands: every section has the same number of rows; each fills down a column, then moves right
+    function build(name) {
+      const secs = sections(name), aspect = W / Math.max(1, H);
+      const run = (R, hdr) => {
+        const X = new Float32Array(N), Y = new Float32Array(N), P = new Float32Array(N).fill(-1), heads = [];
+        let y = 0, maxW = 0;
+        secs.forEach(s => {
+          const total = s.subs.reduce((a, u) => a + u.idx.length, 0);
+          heads.push({ x: 0, y, text: s.title + '   ' + total.toLocaleString('en-US'), kind: 'h' });
+          const top = y + hdr; let c = 0;
+          s.subs.forEach(u => {
+            if (u.label) heads.push({ x: c, y: y + hdr * 0.62, text: u.label + ' ' + u.idx.length.toLocaleString('en-US'), kind: 's', cat: u.cat });
+            const cols = Math.ceil(u.idx.length / R);
+            u.idx.forEach((i, k) => {
+              X[i] = c + Math.floor(k / R) + 0.5; Y[i] = top + (k % R) + 0.5;
+              // where the word sits along its block's diagonal, 0 to 1: the gradient flows along it
+              if (WORDS[i][CAT].length > 1) P[i] = (Math.floor(k / R) + (k % R) * 0.6) / (cols + R * 0.6);
+            });
+            c += Math.ceil(u.idx.length / R) + 2;
+          });
+          maxW = Math.max(maxW, c - 2);
+          y = top + R + hdr * 0.5;
+        });
+        return { X, Y, P, heads, w: maxW, h: y - hdr * 0.5 };
+      };
+      const choose = hdr => {
+        let best = null;
+        for (let R = 8; R <= 500; R += 2) {
+          let w = 0, h = 0;
+          secs.forEach(s => { w = Math.max(w, s.subs.reduce((a, u) => a + Math.ceil(u.idx.length / R) + 2, -2)); h += hdr * 1.5 + R; });
+          const sc = Math.abs(Math.log((w / h) / aspect));
+          if (!best || sc < best.sc) best = { R, sc, w, h };
+        }
+        return best;
+      };
+      let hdr = 10, b = choose(hdr);
+      hdr = 44 / Math.min((W - 40) / b.w, (H - 30) / b.h); b = choose(hdr);
+      const L = run(b.R, hdr);
+      L.grid = new Map();
+      for (let i = 0; i < N; i++) { const k = Math.floor(L.X[i] / 4) + ',' + Math.floor(L.Y[i] / 4); let g = L.grid.get(k); if (!g) L.grid.set(k, g = []); g.push(i); }
+      return L;
+    }
+
+    const fitCam = L => { const s = Math.min((W - 40) / L.w, (H - 30) / L.h); return { s, x: (W - L.w * s) / 2, y: 18 }; };
+
+    function setArr(name, instant) {
+      arr = name;
+      const L = build(name);
+      if (instant || !layoutNow) { cur.X.set(L.X); cur.Y.set(L.Y); layoutNow = L; cam = fitCam(L); draw(); schedule(); return; }
+      from.X.set(cur.X); from.Y.set(cur.Y);
+      layoutNow = L; hover = -1; rel = null;
+      anim = { t0: performance.now(), dur: 1100 };
+      camAnim = { from: { ...cam }, to: fitCam(L), t0: performance.now(), dur: 900 };
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    function tick() {
+      raf = 0;
+      const now = performance.now();
+      if (anim) {
+        const T = (now - anim.t0) / anim.dur;
+        for (let i = 0; i < N; i++) {
+          const t = ease(Math.max(0, Math.min(1, T * 1.4 - delay[i] * 0.4)));
+          cur.X[i] = from.X[i] + (layoutNow.X[i] - from.X[i]) * t;
+          cur.Y[i] = from.Y[i] + (layoutNow.Y[i] - from.Y[i]) * t;
+        }
+        if (T >= 1) { cur.X.set(layoutNow.X); cur.Y.set(layoutNow.Y); anim = null; }
+      }
+      if (camAnim) {
+        const t = ease(Math.min(1, (now - camAnim.t0) / camAnim.dur));
+        cam = { s: camAnim.from.s * Math.pow(camAnim.to.s / camAnim.from.s, t), x: camAnim.from.x + (camAnim.to.x - camAnim.from.x) * t, y: camAnim.from.y + (camAnim.to.y - camAnim.from.y) * t };
+        if (t >= 1) camAnim = null;
+      }
+      draw();
+      if (anim || camAnim || flowing()) raf = requestAnimationFrame(tick);
+    }
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(tick); };
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+    function draw() {
+      if (!layoutNow) return;
+      ctx.clearRect(0, 0, W, H);
+      const s = cam.s, sx = i => cam.x + cur.X[i] * s, sy = i => cam.y + cur.Y[i] * s;
+      if (!still) flowT = performance.now() / 7000;
+      const tiles = s >= 30 && !anim;
+      const dimAll = !!(rel && hover >= 0);
+
+      // headings
+      ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+      let lastEnd = -1e9;
+      layoutNow.heads.forEach(h => {
+        const x = cam.x + h.x * s, y = cam.y + h.y * s;
+        if (h.kind === 'h') { ctx.font = '600 14px Inter, "Noto Sans KR", sans-serif'; ctx.fillStyle = '#000'; ctx.fillText(h.text, Math.max(x, 8), y + 16); lastEnd = -1e9; return; }
+        let px = Math.max(x, lastEnd + 14);
+        ctx.font = '12px Inter, sans-serif';
+        [...h.cat].forEach((l, k) => { ctx.fillStyle = INK[l]; ctx.beginPath(); ctx.arc(px + 4 + k * 8, y + 4, 3.2, 0, 7); ctx.fill(); });
+        px += h.cat.length * 8 + 4;
+        ctx.fillStyle = '#000'; ctx.fillText(h.text, px, y + 8);
+        lastEnd = px + ctx.measureText(h.text).width;
+      });
+
+      if (!tiles) {
+        const r = Math.max(0.75, s * 0.36);
+        const batches = new Map();
+        for (let i = 0; i < N; i++) {
+          if (dimAll && rel.has(i)) continue;
+          const x = sx(i), y = sy(i);
+          if (x < -5 || y < -5 || x > W + 5 || y > H + 5) continue;
+          const col = colorOf(i); let b = batches.get(col); if (!b) batches.set(col, b = []); b.push(i);
+        }
+        ctx.globalAlpha = dimAll ? 0.13 : 1;
+        batches.forEach((b, col) => {
+          ctx.fillStyle = col; ctx.beginPath();
+          b.forEach(i => { const x = sx(i), y = sy(i); ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 7); });
+          ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+        if (dimAll) {
+          // lines from the hovered word to every word that shares one of its characters
+          const hx = sx(hover), hy = sy(hover);
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 0.7; ctx.beginPath();
+          let n = 0; for (const j of rel) { if (n++ > 900) break; ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
+          ctx.stroke();
+          const rr = Math.max(1.6, r * 1.4);
+          for (const j of rel) { ctx.fillStyle = colorOf(j); ctx.beginPath(); ctx.arc(sx(j), sy(j), rr, 0, 7); ctx.fill(); }
+        }
+      } else {
+        // zoomed in: each dot becomes a tile with its word
+        const size = s * 0.88, fs = Math.min(15, s * 0.26);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '500 ' + fs.toFixed(1) + 'px "Noto Sans KR", sans-serif';
+        for (let i = 0; i < N; i++) {
+          const x = sx(i), y = sy(i);
+          if (x < -s || y < -s || x > W + s || y > H + s) continue;
+          ctx.globalAlpha = dimAll && !rel.has(i) && i !== hover ? 0.15 : 1;
+          ctx.fillStyle = colorOf(i); roundRect(x - size / 2, y - size / 2, size, size, Math.min(6, size * 0.12)); ctx.fill();
+          ctx.fillStyle = '#fff';
+          const t = WORDS[i][HANGUL];
+          ctx.fillText(s >= 46 || t.length <= 3 ? t : t.slice(0, 2) + '…', x, y);
+        }
+        ctx.globalAlpha = 1;
+        if (dimAll) {
+          const hx = sx(hover), hy = sy(hover);
+          ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.beginPath();
+          for (const j of rel) { ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
+          ctx.stroke();
+        }
+      }
+
+      // the hovered word, as a pill above it
+      if (hover >= 0 && !anim) {
+        const w = WORDS[hover], x = sx(hover), y = sy(hover);
+        const main = w[HANGUL] + '  ' + w[HANJA] + '  ·  ' + gloss(hover);
+        const extra = rel ? '    ' + rel.size.toLocaleString('en-US') + ' words share a character' : '';
+        ctx.font = '12px Inter, sans-serif'; const ew = extra ? ctx.measureText(extra).width : 0;
+        ctx.font = '500 15px Inter, "Noto Sans KR", "Noto Sans TC", sans-serif';
+        const mw = ctx.measureText(main).width, pw = mw + ew + 54, ph = 32, off = Math.max(10, s * 0.6);
+        const px = Math.max(4, Math.min(W - pw - 4, x - pw / 2)), py = y - ph - off < 4 ? y + off : y - ph - off;
+        ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, Math.max(4.5, s * 0.55), 0, 7); ctx.stroke();
+        ctx.fillStyle = '#fffdf9'; roundRect(px, py, pw, ph, ph / 2); ctx.fill(); ctx.lineWidth = 1; ctx.stroke();
+        ['z', 'j', 'v'].forEach((l, k) => {
+          ctx.beginPath(); ctx.arc(px + 14 + k * 9, py + ph / 2, 3.4, 0, 7);
+          if (w[CAT].includes(l)) { ctx.fillStyle = INK[l]; ctx.fill(); } else { ctx.strokeStyle = '#c9bfae'; ctx.stroke(); }
+        });
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000'; ctx.fillText(main, px + 42, py + ph / 2 + 1);
+        if (extra) { ctx.font = '12px Inter, sans-serif'; ctx.fillStyle = '#4a453d'; ctx.fillText(extra, px + 42 + mw, py + ph / 2 + 1); }
+      }
+    }
+
+    function pick(mx, my) {
+      if (!layoutNow || anim) return -1;
+      const wx = (mx - cam.x) / cam.s, wy = (my - cam.y) / cam.s, reach = Math.max(0.75, 7 / cam.s);
+      let best = -1, bd = reach * reach;
+      for (let gx = Math.floor((wx - reach) / 4); gx <= Math.floor((wx + reach) / 4); gx++)
+        for (let gy = Math.floor((wy - reach) / 4); gy <= Math.floor((wy + reach) / 4); gy++)
+          (layoutNow.grid.get(gx + ',' + gy) || []).forEach(i => { const d = (layoutNow.X[i] - wx) ** 2 + (layoutNow.Y[i] - wy) ** 2; if (d < bd) { bd = d; best = i; } });
+      return best;
+    }
+    function setHover(i) {
+      if (i === hover) return;
+      hover = i; rel = (i >= 0 && showRel) ? relatives(i) : null;
+      schedule();
+    }
+    function zoomAt(mx, my, k) {
+      const s2 = Math.max(0.5, Math.min(90, cam.s * k)), f = s2 / cam.s;
+      cam = { s: s2, x: mx - (mx - cam.x) * f, y: my - (my - cam.y) * f };
+      schedule();
+    }
+
+    let drag = null;
+    const pos = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    cv.addEventListener('mousedown', e => { drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, moved: false }; });
+    addEventListener('mousemove', e => {
+      if (drag) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (drag.moved || Math.abs(dx) + Math.abs(dy) > 3) { drag.moved = true; cv.classList.add('dragging'); cam = { ...cam, x: drag.cx + dx, y: drag.cy + dy }; setHover(-1); schedule(); }
+        return;
+      }
+      if (e.target !== cv) return;
+      const [mx, my] = pos(e); setHover(pick(mx, my));
+    });
+    addEventListener('mouseup', () => {
+      if (drag && !drag.moved && hover >= 0) openWord(hover);
+      drag = null; cv.classList.remove('dragging');
+    });
+    cv.addEventListener('mouseleave', () => { if (!drag) setHover(-1); });
+    cv.addEventListener('wheel', e => {
+      e.preventDefault();
+      const [mx, my] = pos(e);
+      if (e.ctrlKey || e.metaKey) zoomAt(mx, my, Math.exp(-e.deltaY * 0.01));
+      else { cam = { ...cam, x: cam.x - e.deltaX, y: cam.y - e.deltaY }; setHover(-1); schedule(); }
+    }, { passive: false });
+    cv.addEventListener('dblclick', e => { const [mx, my] = pos(e); zoomAt(mx, my, 2.5); });
+
+    document.querySelectorAll('[data-arr]').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('[data-arr]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      setArr(b.dataset.arr);
+    }));
+    document.getElementById('rel').addEventListener('click', e => { showRel = !showRel; e.currentTarget.setAttribute('aria-pressed', String(showRel)); rel = hover >= 0 && showRel ? relatives(hover) : null; schedule(); });
+    document.getElementById('zin').addEventListener('click', () => zoomAt(W / 2, H / 2, 2));
+    document.getElementById('zout').addEventListener('click', () => zoomAt(W / 2, H / 2, 0.5));
+    document.getElementById('zfit').addEventListener('click', () => { camAnim = { from: { ...cam }, to: fitCam(layoutNow), t0: performance.now(), dur: 600 }; schedule(); });
+
+    function resize() {
+      const b = cv.parentElement.getBoundingClientRect();
+      if (!b.width) return;
+      W = b.width; H = b.height;
+      const dpr = devicePixelRatio || 1;
+      cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      setArr(arr, true);
+    }
+    let rt = null; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(resize, 150); });
+    return { resize, draw };
+  })();
+
+  // ---------- 2. Roots walk ----------
+  const RW = (() => {
+    const left = document.getElementById('rw-left'), mid = document.getElementById('rw-mid'), right = document.getElementById('rw-right');
+    const path = [];
+    const reading = c => {
+      const cnt = {};
+      (CHAR_WORDS.get(c) || []).forEach(i => { const w = WORDS[i], k = w[HANJA].indexOf(c); if (w[HANGUL].length === w[HANJA].length && k >= 0) cnt[w[HANGUL][k]] = (cnt[w[HANGUL][k]] || 0) + 1; });
+      return Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+    };
+    const pill = document.createElement('div'); pill.className = 'pill'; pill.hidden = true;
+    const api = { cur: null };
+    api.go = c => {
+      if (!CHAR_WORDS.has(c)) return;
+      api.cur = c;
+      if (path[path.length - 1] !== c) path.push(c);
+      if (path.length > 16) path.shift();
+      const words = CHAR_WORDS.get(c).slice().sort(everydayFirst);
+      const share = [0, 0, 0]; words.forEach(i => [...WORDS[i][CAT]].forEach(l => share[SLOT[l]]++));
+      const meaning = (typeof CHAR_MEANING !== 'undefined' && CHAR_MEANING[c]) || '';
+      const tang = (typeof TANG !== 'undefined' && TANG[c]) || '';
+      left.innerHTML = '<h4>Character</h4><div class="rw-glyph" lang="zh-Hant">' + c + '</div>' +
+        '<div class="rw-read" lang="ko">' + reading(c).join(' / ') + '</div>' +
+        '<div class="rw-meaning">' + meaning + (tang ? '<br>Tang-era reading: <i>' + tang + '</i>' : '') + '</div>' +
+        '<p style="margin:0 0 10px">Builds <b>' + words.length + '</b> shared words. Of those, also a word in:</p>' +
+        '<div class="rw-bars">' + ['z', 'j', 'v'].map(l => { const p = Math.round(100 * share[SLOT[l]] / words.length);
+          return '<span style="color:' + INK[l] + ';font-weight:600">' + LANG[l] + '</span><span class="rw-bar"><i style="width:' + p + '%;background:' + INK[l] + '"></i></span><span>' + p + '%</span>'; }).join('') + '</div>' +
+        '<div class="rw-path">Your walk<br>' + path.map(p => '<button type="button" data-c="' + p + '"' + (p === c ? ' aria-pressed="true"' : '') + '>' + p + '</button>').join('') + '</div>';
+      let html = '';
+      COMBOS.forEach(g => {
+        const a = words.filter(i => WORDS[i][CAT] === g); if (!a.length) return;
+        html += '<div class="rw-row"><h4>' + comboDots(g) + ' ' + NAME[g] + ' <span style="font-weight:400">' + a.length + '</span></h4><div class="rw-tiles">';
+        a.forEach(i => {
+          const w = WORDS[i];
+          const hj = [...w[HANJA]].map(ch => ch === c ? '<b>' + ch + '</b>' : '<button type="button" data-c="' + ch + '" title="Walk to ' + ch + '">' + ch + '</button>').join('');
+          html += '<span class="rw-tile" data-i="' + i + '"><span lang="ko">' + w[HANGUL] + '</span><span class="hj" lang="zh-Hant">' + hj + '</span></span>';
+        });
+        html += '</div></div>';
+      });
+      mid.innerHTML = html; mid.appendChild(pill); pill.hidden = true; mid.scrollTop = 0;
+      const pair = {}; words.forEach(i => new Set(WORDS[i][HANJA]).forEach(ch => { if (ch !== c) pair[ch] = (pair[ch] || 0) + 1; }));
+      const top = Object.entries(pair).sort((a, b) => b[1] - a[1]).slice(0, 36), mx = top.length ? top[0][1] : 1;
+      right.innerHTML = '<h4>Often builds words with</h4><div class="rw-pairs">' + top.map(([ch, n]) =>
+        '<button type="button" data-c="' + ch + '" title="' + n + ' words together" style="font-size:' + (14 + 18 * Math.sqrt(n / mx)).toFixed(0) + 'px">' + ch + '</button>').join('') + '</div>';
+    };
+    document.getElementById('roots').addEventListener('click', e => {
+      const b = e.target.closest('[data-c]'); if (b) { api.go(b.dataset.c); return; }
+      const t = e.target.closest('.rw-tile'); if (t) openWord(+t.dataset.i);
+    });
+    mid.addEventListener('mouseover', e => {
+      const t = e.target.closest('.rw-tile'); if (!t) { pill.hidden = true; return; }
+      const i = +t.dataset.i, w = WORDS[i];
+      pill.innerHTML = slotsHTML(w[CAT]) + '<span>' + gloss(i) + '</span>';
+      const b = t.getBoundingClientRect(), bb = mid.getBoundingClientRect();
+      pill.style.left = Math.max(100, b.left - bb.left + b.width / 2) + 'px'; pill.style.top = (b.top - bb.top + mid.scrollTop) + 'px'; pill.hidden = false;
+    });
+    mid.addEventListener('mouseleave', () => { pill.hidden = true; });
+    const input = document.getElementById('rw-input');
+    const fromInput = () => {
+      const v = input.value.trim(); if (!v) return;
+      if (CHAR_WORDS.has(v[0])) { api.go(v[0]); return; }
+      // a Hangul syllable: the character read that way that builds the most words
+      let best = null, bn = 0;
+      CHAR_WORDS.forEach((a, ch) => { if (a.length > bn && reading(ch)[0] === v[0]) { best = ch; bn = a.length; } });
+      if (best) api.go(best);
+    };
+    document.getElementById('rw-go').addEventListener('click', fromInput);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') fromInput(); });
+    document.getElementById('rw-random').addEventListener('click', () => {
+      const keys = [...CHAR_WORDS.keys()].filter(k => CHAR_WORDS.get(k).length >= 8);
+      api.go(keys[Math.floor(Math.random() * keys.length)]);
+    });
+    return api;
+  })();
+
+  F.resize();
+  if (document.fonts) document.fonts.ready.then(() => F.draw());
+  </script>
+</body>
+</html>
