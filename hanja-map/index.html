@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261115d">
+  <link rel="stylesheet" href="style.css?v=20261115w">
 </head>
 <body>
 
@@ -84,210 +84,166 @@
       <!-- Contents, kept in view on wide screens -->
       <nav class="about-toc" aria-label="On this page">
         <p class="about-toc-title">On this page</p>
-        <a href="#" data-jump="about-words">Which words</a>
-        <a href="#" data-jump="about-use">Using the site</a>
-        <a href="#" data-jump="about-notes">Good to know</a>
-        <a href="#" data-jump="about-terms">Terms</a>
-        <a href="#" data-jump="about-sources">Sources</a>
+        <a href="#" data-jump="about-story">The story</a>
+        <a href="#" data-jump="about-words">What's here</a>
+        <a href="#" data-jump="about-use">Reading the site</a>
+        <a href="#" data-jump="about-ref">Reference</a>
       </nav>
 
       <div class="about-body">
         <header class="about-hero">
-          <div>
-            <h1 id="about-title" tabindex="-1">About Hanja Roots</h1>
-            <p class="about-lead">For centuries, Korean, Chinese, Japanese, and Vietnamese were all written with Chinese characters.
-               More than half of Korean vocabulary is still built from them. Hanja Roots gathers 21,838 of those Korean words, the ones
-               whose characters are also a word in Chinese, Japanese, or Vietnamese, and shows what each means and how it sounds in every
-               language that shares it.</p>
-          </div>
-          <div class="about-glyph" aria-hidden="true">
-            <span class="about-glyph-chars">漢字</span>
-            <span class="about-glyph-names"><b>hanja</b><b>hànzì</b><b>kanji</b><b>chữ Hán</b></span>
-          </div>
+          <h1 id="about-title" tabindex="-1">About Hanja Roots</h1>
+          <p class="about-lead">Korean, Chinese, Japanese, and Vietnamese were all once written with Chinese characters. Hanja Roots
+             gathers 21,838 Korean words whose characters are also a word in at least one of the other three, and shows what each
+             one means and how it sounds in every language that shares it.</p>
         </header>
 
+        <!-- Why the words are shared, with one word followed across all four languages -->
+        <section id="about-story" class="about-section">
+          <h2>Why these words are shared</h2>
+          <div class="about-prose">
+            <p>For centuries, Chinese characters were the shared writing system of East Asia. Korea, Japan, and Vietnam read and
+               wrote Classical Chinese, and borrowed thousands of words along with the characters, each pronouncing them in its own
+               way. The flow ran in more than one direction: in the 19th century, Japanese scholars coined words for new ideas from
+               old characters, and those words spread back to China, Korea, and Vietnam.</p>
+            <p>Today Korean is written mostly in Hangul and Vietnamese in the Latin alphabet, but the words remain. Write them in
+               characters again and they line up across all four languages.</p>
+          </div>
+          <div class="about-example">
+            <div><small>Korean</small><b lang="ko">경제</b><span><span lang="ko">經濟</span> · gyeongje</span></div>
+            <div><small class="ink-z">Mandarin</small><b lang="zh-Hans">经济</b><span>jīngjì</span></div>
+            <div><small class="ink-z">Cantonese</small><b lang="zh-Hant">經濟</b><span>ging1 zai3</span></div>
+            <div><small class="ink-j">Japanese</small><b lang="ja">経済</b><span><span lang="ja">けいざい</span> · keizai</span></div>
+            <div><small class="ink-v">Vietnamese</small><b lang="vi">kinh tế</b><span lang="zh-Hant">經濟</span></div>
+          </div>
+          <p class="about-caption">"Economy": a classical phrase given its modern meaning in Japan, then taken up by all three neighbours.</p>
+          <p class="about-note"><b>Same characters, not always the same meaning.</b> 가족 家族 is "family" in Korean, Chinese, and
+             Japanese, but "extended family, clan" in Vietnamese. A word's page shows each meaning side by side.</p>
+        </section>
+
+        <!-- Which words: the 35,411 checked, the share that made it in, and how many languages share them -->
         <section id="about-words" class="about-section">
-          <h2>Which words are included</h2>
-          <div class="about-split">
-            <div>
-              <p>The Korean dictionaries used here list 35,411 words written with Hanja. Each one was checked against Chinese, Japanese,
-                 and Vietnamese dictionaries to see whether the same characters are a word there too. The 21,838 that are, in at least
-                 one language, make up this site.</p>
-              <p>The more common a word, the more likely it's shared: 90.8% of everyday words are, and 77.8% of the words in the Basic
-                 Korean Dictionary, but only 40.5% of the rarer words found only in kengdic. A word left out wasn't necessarily
-                 invented in Korea: dictionary coverage varies, and many are rare compounds.</p>
+          <h2>What's here</h2>
+          <div class="about-funnel">
+            <div class="about-fbar" role="img" aria-label="Of 35,411 Korean Hanja words checked, 21,838 are shared and 13,573 are not">
+              <div class="f-in" style="width:61.7%">21,838 shared · shown here</div>
+              <div class="f-out" style="width:38.3%">13,573 not shared</div>
             </div>
-            <div class="about-stats">
-              <div class="about-big">
-                <div><b>35,411</b><span>Korean Hanja words checked</span></div>
-                <div><b>21,838</b><span>shared, and shown here (61.7%)</span></div>
-                <div><b>13,573</b><span>not shared, left out (38.3%)</span></div>
-              </div>
-              <p class="about-bars-title">Also a word in…</p>
-              <div class="about-bars">
-                <div class="about-bar"><span class="ink-z">Chinese</span><span class="bar"><i class="lang-z" style="width:33.4%"></i></span><span>11,828 · 33.4%</span></div>
-                <div class="about-bar"><span class="ink-j">Japanese</span><span class="bar"><i class="lang-j" style="width:57.2%"></i></span><span>20,262 · 57.2%</span></div>
-                <div class="about-bar"><span class="ink-v">Vietnamese</span><span class="bar"><i class="lang-v" style="width:11.2%"></i></span><span>3,964 · 11.2%</span></div>
-                <div class="about-bar"><span>All three</span><span class="bar"><i class="all" style="width:9.5%"></i></span><span>3,350 · 9.5%</span></div>
-              </div>
-              <p class="about-bars-note">Share of all 35,411 words checked.</p>
+            <p class="about-flab">35,411 Korean words written with Hanja, checked against Chinese, Japanese, and Vietnamese dictionaries</p>
+            <div class="about-fbar about-fsub" role="img" aria-label="Of the 21,838 shared words, 3,350 are shared with all three languages, 7,516 with two, and 10,972 with one">
+              <div class="f-3" style="width:15.3%">3,350</div>
+              <div class="f-2" style="width:34.4%">7,516</div>
+              <div class="f-1" style="width:50.3%">10,972</div>
             </div>
+            <p class="about-flab about-fsub"><span>all three</span><span>two languages</span><span>one language</span></p>
           </div>
+          <p class="about-prose about-small">Common words are the most likely to be shared: 90.8% of everyday words are, against 40.5%
+             of rare ones. A word left out wasn't necessarily invented in Korea; dictionary coverage varies.</p>
+          <p class="about-note"><b>Vietnamese matches are by sound.</b> Words are matched by their Sino-Vietnamese reading (經濟 →
+             kinh tế), so about 2 in 40 are different words that sound alike. A word's page checks Wiktionary to confirm.</p>
         </section>
 
+        <!-- How to read the two views, shown rather than described -->
         <section id="about-use" class="about-section">
-          <h2>Using the site</h2>
-          <div class="about-cards">
-            <div class="about-card">
+          <h2>Reading the site</h2>
+          <div class="about-figs">
+            <figure>
+              <h3>Overview</h3>
+              <img class="about-shot" src="about-overview.jpg" width="440" height="230"
+                   alt="The overview with one word hovered: a pill reads 고행 苦行, penance, 249 words share a character, with lines to each of them">
+              <p class="about-legend"><span><b>Hover</b> a word and its relatives</span><span><b>Click</b> select</span>
+                 <span><b>Pinch or ⌘ scroll</b> zoom</span><span><b>Two fingers or drag</b> move</span><span><b>Double-click</b> reset</span></p>
+              <figcaption class="about-caption">Bands run from all three languages down to one. A word shared by two or three
+                 languages flows through their colours; lines join words that share a character.</figcaption>
+            </figure>
+            <figure>
               <h3>List</h3>
-              <p>Every word as a card, everyday words first: its English meaning, the Korean word and its Hanja, and how it's
-                 read. A column of dots on the right has a slot for each language, in the same order every time, filled when
-                 that language shares the word: <span class="lang-dot lang-z"></span> Chinese, <span class="lang-dot lang-j"></span>
-                 Japanese, <span class="lang-dot lang-v"></span> Vietnamese.</p>
-            </div>
-            <div class="about-card">
-              <h3>Map</h3>
-              <p>Every word as a dot, in bands by the languages that share it; a band's length follows its word count. A word shared
-                 by two or three languages flows through their colours.</p>
-            </div>
-            <div class="about-card">
-              <h3>Moving around the map</h3>
-              <p>Hover a dot to see its word, with lines to every word that shares one of its characters, and click to select it.
-                 Pinch, or hold Ctrl or ⌘ and scroll, to zoom in until the dots become words; swipe with two fingers or drag to move
-                 around, and double-click to see everything again.</p>
-            </div>
-            <div class="about-card">
-              <h3>One group at a time</h3>
-              <p>Choose languages to see one group: in the map, the other dots fade back, so you can still see where the group sits
-                 among the rest. A search does the same with its matches.</p>
-            </div>
-            <div class="about-card">
-              <h3>Choosing languages</h3>
-              <p>Every word is Korean. Switch Chinese, Japanese, and Vietnamese on or off to see the words shared by exactly those
-                 languages, or press one and swipe across the others to change several at once. With none on, you see every word.</p>
-            </div>
-            <div class="about-card">
-              <h3>A word up close</h3>
-              <p>Select a word to compare it across languages in the side panel. See full breakdown, or double-click, opens its own
-                 page: how it sounds, what it means in each language, and the characters it's built from, with other words that use them.</p>
-            </div>
-            <div class="about-card">
-              <h3>Searching</h3>
-              <p>Search in English or any of the languages: Hangul or romanized Korean (<em>hakgyo</em>), Chinese characters, pinyin
-                 (<em>xuexiao</em>) or Jyutping (<em>hokhaau</em>), kanji, kana or romaji (<em>gakko</em>), or Vietnamese with or
-                 without tone marks (<em>hoc hieu</em>).</p>
-            </div>
-            <div class="about-card">
-              <h3>Listening</h3>
-              <p>Click a language in the side panel to hear the word, in both Mandarin and Cantonese for Chinese. A native speaker's
-                 recording from <a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a> plays when there is one,
-                 credited to them; otherwise your device's built-in voice reads it.</p>
-            </div>
+              <div class="about-cardfig">
+                <div class="card" aria-hidden="true">
+                  <div class="gloss">family</div>
+                  <div class="ko" lang="ko">가족<span class="hj">家族</span></div>
+                  <div class="roman">gajok</div>
+                  <div class="share-bar"><i class="on lang-z"></i><i class="on lang-j"></i><i class="on lang-v"></i></div>
+                </div>
+                <ul class="about-callouts">
+                  <li style="--y:12px">English meaning</li>
+                  <li style="--y:44px">Korean in Hangul, then Hanja</li>
+                  <li style="--y:66px">romanized</li>
+                  <li style="--y:86px">which languages share it: <span class="lang-dot lang-z" title="Chinese"></span><span class="lang-dot lang-j" title="Japanese"></span><span class="lang-dot lang-v" title="Vietnamese"></span></li>
+                </ul>
+              </div>
+              <figcaption class="about-caption">A meaning marked ≈ is borrowed from another language when the Korean dictionaries have none.</figcaption>
+              <p class="about-legend"><span><b>Languages</b> show the words shared by exactly those</span>
+                 <span><b>Search</b> in any language or romanization</span><span><b>Select</b> compare in the side panel</span>
+                 <span><b>Trace its roots</b> or <b>double-click</b> open its page</span>
+                 <span><b>Listen</b> native recordings from <a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a> when there are some</span></p>
+            </figure>
           </div>
         </section>
 
-        <section id="about-notes" class="about-section">
-          <h2>Good to know</h2>
-          <div class="about-cards two">
-            <div class="about-card">
-              <h3>Same characters, different meanings</h3>
-              <p>Sharing characters doesn't mean sharing a meaning. 가족 家族 is "family" in Korean, Chinese, and Japanese, but
-                 "extended family, clan" in Vietnamese. Select a word to compare.</p>
+        <!-- Terms and sources, side by side in smaller type -->
+        <section id="about-ref" class="about-section">
+          <h2>Reference</h2>
+          <div class="about-ref">
+            <div>
+              <h3 class="about-subhead">Terms</h3>
+              <dl class="about-gloss">
+                <div><dt>Hanja · hànzì · kanji · chữ Hán</dt><dd>The Korean, Chinese, Japanese, and Vietnamese names for Chinese characters.</dd></div>
+                <div><dt>Hangul</dt><dd>The Korean alphabet. Korean is usually written in Hangul today; Hanja show a word's roots.</dd></div>
+                <div><dt>Mandarin, Cantonese</dt><dd>Two spoken varieties of Chinese. Cantonese keeps the old endings -p, -t, -k, so it
+                    often sounds closer to Korean: 學 is <em>hak</em> in Korean, <em>hok</em> in Cantonese, but <em>xué</em> in Mandarin.</dd></div>
+                <div><dt>Pinyin, Jyutping</dt><dd>Romanizations for Mandarin and Cantonese; the number in Jyutping (hok6) marks the tone.</dd></div>
+                <div><dt>Kana</dt><dd>The Japanese syllable alphabets, hiragana and katakana, used here to show how a word is read.</dd></div>
+                <div><dt>Sino-Vietnamese</dt><dd>The Vietnamese way of reading Chinese characters, still behind many words now written in
+                    the Latin-based chữ Quốc ngữ.</dd></div>
+                <div><dt>Tang-era reading</dt><dd>A scholar's reconstruction of how a character sounded in Tang China (618–907), when much
+                    of this vocabulary spread across East Asia. Approximate.</dd></div>
+                <div><dt>Romanization</dt><dd>Revised Romanization for Korean (letter by letter, so some sound changes aren't shown),
+                    pinyin and Jyutping for Chinese, Hepburn romaji for Japanese.</dd></div>
+                <div><dt>Traditional, simplified</dt><dd>Korea and Taiwan keep older forms; mainland China and, for some characters,
+                    Japan use simpler ones (學 → 学).</dd></div>
+              </dl>
             </div>
-            <div class="about-card">
-              <h3>Meanings marked ≈</h3>
-              <p>About 2,900 rarer words have no English meaning in the Korean dictionaries. For those, the site shows what the word
-                 means in Japanese, Chinese, or Vietnamese, marked ≈. It's a hint, not a definition.</p>
-            </div>
-            <div class="about-card">
-              <h3>Vietnamese matches</h3>
-              <p>Vietnamese is written in the Latin alphabet now, so words are matched by their Sino-Vietnamese reading (學校 →
-                 học hiệu). In a hand-checked sample, about 2 in 40 matches were different words that sound the same. Selecting a word
-                 checks Wiktionary to confirm its characters.</p>
-            </div>
-            <div class="about-card">
-              <h3>Missing voices</h3>
-              <p>If a language won't play, your device may not have its voice. On a Mac: System Settings → Accessibility → Read &amp;
-                 Speak (Spoken Content on older versions), then choose the language and its voice. On Windows: Settings → Time &amp;
-                 language → Speech → Add voices. Many words haven't been recorded by native speakers yet; if you speak one of these
-                 languages, you can record them on Lingua Libre.</p>
+            <div>
+              <h3 class="about-subhead">Sources</h3>
+              <table class="about-src">
+                <thead><tr><th scope="col">For</th><th scope="col">Source</th><th scope="col">License</th></tr></thead>
+                <tbody>
+                  <tr><td>Korean</td><td><a href="https://krdict.korean.go.kr/" target="_blank" rel="noopener">Basic Korean Dictionary</a>
+                      (National Institute of Korean Language), via
+                      <a href="https://github.com/spellcheck-ko/korean-dict-nikl-krdict" target="_blank" rel="noopener">korean-dict-nikl-krdict</a>;
+                      <a href="https://github.com/garfieldnate/kengdic" target="_blank" rel="noopener">kengdic</a>, whose Hanja are less reliable</td>
+                      <td>CC BY-SA 2.0 KR · MPL 2.0 or LGPL</td></tr>
+                  <tr><td class="ink-z">Chinese</td><td><a href="https://cc-cedict.org/" target="_blank" rel="noopener">CC-CEDICT</a>; Cantonese
+                      from <a href="https://github.com/CanCLID/to-jyutping" target="_blank" rel="noopener">to-jyutping</a></td>
+                      <td>CC BY-SA 4.0 · BSD-2-Clause</td></tr>
+                  <tr><td class="ink-j">Japanese</td><td><a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener">JMdict</a>
+                      (Electronic Dictionary Research and Development Group)</td><td>CC BY-SA 4.0</td></tr>
+                  <tr><td class="ink-v">Vietnamese</td><td><a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> via
+                      <a href="https://kaikki.org/dictionary/Vietnamese/" target="_blank" rel="noopener">Kaikki.org</a> and
+                      <a href="https://github.com/nguyen18/which-dialect" target="_blank" rel="noopener">which-dialect</a>; readings from
+                      <a href="https://github.com/ph0ngp/hanviet-pinyin-words" target="_blank" rel="noopener">hanviet-pinyin-words</a></td>
+                      <td>CC BY-SA 4.0 · MIT</td></tr>
+                  <tr><td>Characters</td><td><a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Unihan</a>:
+                      meanings, Tang-era readings (from Hugh M. Stimson's <em>T'ang Poetic Vocabulary</em>, 1976), and variant forms
+                      to match 學 and 学, or 敎 and 教</td><td>Unicode</td></tr>
+                  <tr><td>Recordings</td><td><a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a> on
+                      <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a>, credited to each speaker</td>
+                      <td>Each its own, usually CC BY-SA 4.0</td></tr>
+                </tbody>
+              </table>
+              <p class="about-fineprint">Meanings are shortened. Matching uses whole words written with the same characters.</p>
             </div>
           </div>
-        </section>
-
-        <section id="about-terms" class="about-section">
-          <h2>Terms</h2>
-          <dl class="about-terms">
-            <div><dt>Hanja, hanzi, kanji, chữ Hán</dt>
-                 <dd>The Korean, Chinese, Japanese, and Vietnamese names for Chinese characters.</dd></div>
-            <div><dt>Hangul</dt>
-                 <dd>The Korean alphabet. Korean is usually written in Hangul today; Hanja show a word's roots.</dd></div>
-            <div><dt>Mandarin and Cantonese</dt>
-                 <dd>Two major spoken varieties of Chinese that share the same written words. Cantonese keeps older endings (-p, -t,
-                     -k, -m) that Mandarin lost, so it often sounds closer to Korean: 學 is <em>hak</em> in Korean, <em>hok</em> in
-                     Cantonese, but <em>xué</em> in Mandarin.</dd></div>
-            <div><dt>Pinyin and Jyutping</dt>
-                 <dd>The standard romanizations for Mandarin and Cantonese. The numbers in Jyutping (hok6) mark the tone.</dd></div>
-            <div><dt>Kana</dt>
-                 <dd>The two Japanese syllable alphabets, hiragana and katakana, used here to show how a word is read.</dd></div>
-            <div><dt>Sino-Vietnamese</dt>
-                 <dd>The Vietnamese way of reading Chinese characters. Vietnam switched to a Latin-based alphabet (chữ Quốc ngữ) in
-                     the 20th century, but many words still come from Chinese characters.</dd></div>
-            <div><dt>Tang-era reading</dt>
-                 <dd>Roughly how a character sounded in Tang dynasty China (618–907), when much of this vocabulary spread across East
-                     Asia. Each language then changed the sounds in regular ways: Mandarin dropped -p, -t, and -k; Korean turned -t into
-                     -l; Japanese added vowels after them. The readings are a scholar's reconstruction, so treat them as approximate.</dd></div>
-            <div><dt>Romanization</dt>
-                 <dd>Spelling a word in the Latin alphabet: simplified Revised Romanization for Korean (letter by letter, so some sound
-                     changes aren't shown), pinyin and Jyutping for Chinese, Hepburn romaji for Japanese.</dd></div>
-            <div><dt>Traditional and simplified</dt>
-                 <dd>Korea and Taiwan use older traditional forms; mainland China and, for some characters, Japan use simpler modern
-                     forms (學 became 学).</dd></div>
-          </dl>
-        </section>
-
-        <section id="about-sources" class="about-section">
-          <h2>Sources</h2>
-          <div class="about-sources">
-            <div><h3>Korean</h3>
-              <p>The <a href="https://krdict.korean.go.kr/" target="_blank" rel="noopener">Basic Korean Dictionary</a> (한국어기초사전),
-                 National Institute of Korean Language, CC BY-SA 2.0 KR, via a 2019 export from
-                 <a href="https://github.com/spellcheck-ko/korean-dict-nikl-krdict" target="_blank" rel="noopener">korean-dict-nikl-krdict</a>:
-                 Hanja, English equivalents, and learner levels. Other words come from
-                 <a href="https://github.com/garfieldnate/kengdic" target="_blank" rel="noopener">kengdic</a> (MPL 2.0 or LGPL), whose
-                 Hanja spellings are less reliable.</p></div>
-            <div><h3 class="ink-z">Chinese</h3>
-              <p><a href="https://cc-cedict.org/" target="_blank" rel="noopener">CC-CEDICT</a> (CC BY-SA 4.0), matched by traditional
-                 characters. Cantonese readings from <a href="https://github.com/CanCLID/to-jyutping" target="_blank" rel="noopener">to-jyutping</a>
-                 (BSD-2-Clause).</p></div>
-            <div><h3 class="ink-j">Japanese</h3>
-              <p><a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener">JMdict</a>, property of the
-                 Electronic Dictionary Research and Development Group (CC BY-SA 4.0).</p></div>
-            <div><h3 class="ink-v">Vietnamese</h3>
-              <p>Words and meanings from <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> via
-                 <a href="https://kaikki.org/dictionary/Vietnamese/" target="_blank" rel="noopener">Kaikki.org</a> and
-                 <a href="https://github.com/nguyen18/which-dialect" target="_blank" rel="noopener">which-dialect</a> (CC BY-SA 4.0);
-                 Sino-Vietnamese readings from <a href="https://github.com/ph0ngp/hanviet-pinyin-words" target="_blank" rel="noopener">hanviet-pinyin-words</a> (MIT).</p></div>
-            <div><h3>Recordings</h3>
-              <p>Looked up live on <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a>, mostly
-                 from <a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a>. Each is credited to its speaker
-                 and keeps its own license, usually CC BY-SA 4.0.</p></div>
-            <div><h3>Characters</h3>
-              <p><a href="https://www.unicode.org/charts/unihan.html" target="_blank" rel="noopener">Unicode Unihan</a>: character
-                 meanings (kDefinition), Tang-era readings (kTang, from Hugh M. Stimson's <em>T'ang Poetic Vocabulary</em>, 1976), and
-                 variant forms (kJapaneseNewVariant, kZVariant, kSemanticVariant, kTraditionalVariant) to match forms like 學 and 学, or
-                 敎 and 教.</p></div>
-          </div>
-          <p class="about-fineprint">Meanings are shortened. Matching uses whole words written with the same characters.</p>
         </section>
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261115d"></script>
-  <script src="characters.js?v=20261115d"></script>
-  <script src="romanize.js?v=20261115d"></script>
-  <script src="recordings.js?v=20261115d"></script>
-  <script src="speech.js?v=20261115d"></script>
-  <script src="script.js?v=20261115d"></script>
+  <script src="words.js?v=20261115w"></script>
+  <script src="characters.js?v=20261115w"></script>
+  <script src="romanize.js?v=20261115w"></script>
+  <script src="recordings.js?v=20261115w"></script>
+  <script src="speech.js?v=20261115w"></script>
+  <script src="script.js?v=20261115w"></script>
 </body>
 </html>
