@@ -140,7 +140,7 @@ function createMap3D(wrap, opts) {
 
   // ---------- Scene ----------
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xffffff);
+  scene.background = new THREE.Color(0xfaf8f3);   // the page's warm paper colour (--paper in style.css)
   const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 2000);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.domElement.className = "map3d-canvas";
@@ -227,9 +227,11 @@ function createMap3D(wrap, opts) {
         // Small, distant tiles: a soft block with a hint of its text, no outline (outlines shimmer at this size).
         // Larger tiles: a white box with an outline and the word in it.
         float near = smoothstep(14.0, 30.0, vPx);
-        vec3 far = mix(mix(vec3(1.0), vColor, 0.35), vColor, ink * 0.8);
-        vec3 close = edge ? vColor : mix(vec3(1.0), vColor * 0.8, ink);
-        vec3 col = mix(mix(far, close, near), vec3(1.0), 1.0 - vFade);   // fading toward the white background
+        const vec3 CARD = vec3(1.0, 0.992, 0.976);    // tile fill, --card
+        const vec3 PAPER = vec3(0.980, 0.973, 0.953); // background, --paper
+        vec3 far = mix(mix(CARD, vColor, 0.35), vColor, ink * 0.8);
+        vec3 close = edge ? vColor : mix(CARD, vColor * 0.8, ink);
+        vec3 col = mix(mix(far, close, near), PAPER, 1.0 - vFade);   // fading toward the background
         gl_FragColor = vec4(col, 1.0);
       }`
   });
@@ -275,7 +277,7 @@ function createMap3D(wrap, opts) {
     const canvas = document.createElement("canvas");
     canvas.width = tw; canvas.height = stripRows * ch;
     const g = canvas.getContext("2d", { willReadFrequently: true });
-    const font = px => `500 ${px}px Inter, system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif`;
+    const font = px => `500 ${px}px Inter, "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif`;
     const base = Math.round(ch * 0.36);
     let row0 = 0;
     function strip() {
@@ -629,8 +631,8 @@ function createMap3D(wrap, opts) {
   }
 
   // ---------- Look: colors and sizes from the page's state ----------
-  const SHADE = [[0.88, 0.88, 0.88], [0.4, 0.4, 0.4], [0.03, 0.03, 0.03]];
-  const TILE_SHADE = [[0.82, 0.82, 0.82], [0.32, 0.32, 0.32], [0.0, 0.0, 0.0]];
+  const SHADE = [[0.88, 0.865, 0.835], [0.4, 0.39, 0.37], [0.03, 0.03, 0.03]];   // faded greys warmed to match the paper
+  const TILE_SHADE = [[0.82, 0.80, 0.77], [0.32, 0.31, 0.29], [0.0, 0.0, 0.0]];
   const DOT_SIZE = [DOT * 0.55, DOT, DOT * 1.15];
   let selected = -1;
   function restyle() {

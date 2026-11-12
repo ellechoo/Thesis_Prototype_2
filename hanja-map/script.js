@@ -90,17 +90,36 @@ function updateStatus() {
   const where = state.group === null ? "" : " " + shortWhere(state.group);
   const listOnly = state.everyday && state.view === "list";   // the list shows only everyday words
   const inGroup = i => state.group === null || WORDS[i][CAT] === state.group;
-  let text;
+  let count;
   if (state.matches) {
     const n = listOnly ? visibleWords().length : state.matches.filter(inGroup).length;
-    text = n.toLocaleString() + (listOnly ? " everyday" : "") + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "”" + where;
+    count = n.toLocaleString() + (listOnly ? " everyday" : "") + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "”";
   } else {
     const n = listOnly ? visibleWords().length : state.group === null ? WORDS.length : (COUNTS[state.group] || 0);
-    text = n.toLocaleString() + (listOnly ? " everyday" : "") + (n === 1 ? " word" : " words") + where;
+    count = n.toLocaleString() + (listOnly ? " everyday" : "") + (n === 1 ? " word" : " words");
   }
-  if (state.everyday && !listOnly) text += ", everyday ones highlighted";
-  $("status").textContent = text;
+  const tail = state.everyday && !listOnly ? ", everyday ones highlighted" : "";
+  // The full line, and a shorter one without the languages (the language buttons beside it already show them)
+  fitStatus(count + where + tail, count + (tail ? " · everyday highlighted" : ""));
 }
+
+// Keeps the count on one line beside the filters: a long line first gets a little smaller (down to 11px);
+// if it still doesn't fit, the shorter version is shown instead. The full line is always in the tooltip.
+let statusTexts = ["", ""];
+function fitStatus(full, short) {
+  if (full !== undefined) statusTexts = [full, short];
+  const st = $("status");
+  st.title = statusTexts[0];
+  const tryText = (text, min) => {
+    st.textContent = text;
+    st.style.fontSize = "";
+    let size = 13;
+    while (st.scrollWidth > st.clientWidth && size > min) { size -= 0.5; st.style.fontSize = size + "px"; }
+    return st.scrollWidth <= st.clientWidth;
+  };
+  if (!tryText(statusTexts[0], 11) && st.clientWidth) tryText(statusTexts[1], 10);
+}
+window.addEventListener("resize", () => fitStatus());
 
 // ---------- Group buttons ----------
 
@@ -399,7 +418,7 @@ function draw() {
     const w = ctx.measureText(label).width + 12;
     const lx = Math.min(Math.max(x - w / 2, 2), width - w - 2);
     const ly = y - dot - 34 < 2 ? y + dot + 10 : y - dot - 34;
-    ctx.fillStyle = "#fff"; ctx.fillRect(lx, ly, w, 24);
+    ctx.fillStyle = "#fffdf9"; ctx.fillRect(lx, ly, w, 24);
     ctx.strokeRect(lx, ly, w, 24);
     ctx.fillStyle = "#000"; ctx.textAlign = "left";
     ctx.fillText(label, lx + 6, ly + 17);
@@ -508,17 +527,20 @@ function card(i) {
   b.className = "card";
   b.dataset.index = i;
   b.setAttribute("aria-pressed", String(state.selected === i));
-  const ko = document.createElement("div");
-  ko.className = "ko";
-  ko.textContent = w[HANGUL] + " " + w[HANJA];
-  const roman = document.createElement("div");
-  roman.className = "roman";
-  roman.textContent = KO_ROMAN[i];
-  const gloss = document.createElement("div");
-  gloss.className = "gloss";
-  gloss.textContent = meaningOf(i).short;
-  if (meaningOf(i).source !== "ko") gloss.classList.add("borrowed");
-  b.append(ko, roman, gloss, langDots(w[CAT], "tags"));
+  // The meaning leads (for English readers), then the Korean word with its Hanja, then the romanization.
+  // A bar at the bottom has a fixed slot for Chinese, Japanese, and Vietnamese, coloured when that language shares the word.
+  const m = meaningOf(i);
+  const en = el("div", "gloss" + (m.source !== "ko" ? " borrowed" : ""), m.short);
+  const ko = el("div", "ko", w[HANGUL]);
+  ko.lang = "ko";
+  ko.appendChild(el("span", "hj", w[HANJA]));
+  const roman = el("div", "roman", KO_ROMAN[i]);
+  const bar = el("div", "share-bar");
+  const names = Array.from(w[CAT]).map(c => LANG_NAME[c]);
+  bar.title = "Also a word in " + joinList(names);
+  bar.appendChild(el("span", "visually-hidden", bar.title));
+  ["z", "j", "v"].forEach(c => bar.appendChild(el("i", w[CAT].includes(c) ? "on lang-" + c : "")));
+  b.append(en, ko, roman, bar);
   b.title = "Double-click to open this word's page";
   b.addEventListener("click", () => select(i));
   b.addEventListener("dblclick", () => openWord(i));
@@ -633,16 +655,21 @@ function renderIntro() {
   panel.innerHTML = "";
   const map = state.view === "map";
   const box = el("div", "intro");
-  box.appendChild(el("h2", "intro-title", "Hanja Roots"));
+  box.appendChild(el("h2", "intro-title", "The roots beneath Korean words"));
   box.appendChild(el("p", "intro-lead", "More than half of Korean vocabulary is built from Chinese characters. Korean, Chinese, " +
     "Japanese, and Vietnamese were all once written with them, and each has its own name for them:"));
 
-  // The same two characters, four names: the Latin-alphabet name is the big one, for English readers
+  // The same two characters, four names: 漢字 large, with each language's name for it beside it
   const names = el("div", "char-names");
+  const glyph = el("span", "char-glyph", "漢字");
+  glyph.lang = "ko";
+  glyph.setAttribute("aria-hidden", "true");
+  names.appendChild(glyph);
   CHAR_NAMES.forEach(n => {
-    const row = el("div", "char-name");
-    row.append(el("span", "char-name-lang", n.lang), el("span", "char-name-say", n.say), el("span", "char-name-word", n.word));
-    names.appendChild(row);
+    const cell = el("div", "char-name");
+    cell.append(inked("span", "char-name-lang", n.lang), el("span", "char-name-say", n.say));
+    cell.title = n.lang + ": " + n.say + " (" + n.word + ")";
+    names.appendChild(cell);
   });
   box.appendChild(names);
 
@@ -662,7 +689,7 @@ function renderIntro() {
      ["Japanese", w[JP_READING] && romajiWithMacrons(JP_ROMAN[i])], ["Vietnamese", w[VI_WORD]]].forEach(([lang, say]) => {
       if (!say) return;
       const cell = el("span", "ex-cell");
-      cell.append(el("span", "ex-lang", lang), el("span", "ex-say", say));
+      cell.append(inked("span", "ex-lang", lang), el("span", "ex-say", say));
       grid.appendChild(cell);
     });
     ex.append(head, grid);
@@ -733,10 +760,18 @@ function select(i) {
   })); else missing.push(missingCard("Vietnamese", "Not a word in Vietnamese"));
   missing.forEach(m => panel.appendChild(m));
 
-  const open = el("button", "full-breakdown", "See full breakdown →");
+  // "Trace its roots": a small link under the English heading to the word's full page, naming its characters
+  const open = el("button", "trace-link");
   open.type = "button";
+  open.setAttribute("aria-label", "Trace the roots of " + w[HANGUL] + ": open its full breakdown");
+  open.append(document.createTextNode("Trace its roots: "));
+  Array.from(w[HANJA]).forEach((c, k) => {
+    if (k) open.append(document.createTextNode(" + "));
+    open.appendChild(el("b", "", c));
+  });
+  open.append(document.createTextNode(" →"));
   open.addEventListener("click", () => openWord(i));
-  panel.appendChild(open);
+  head.appendChild(open);
 
   // Keep the list and map in step with the selection
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
@@ -775,7 +810,7 @@ function soundCard(o) {
   card.tabIndex = 0;
   card.setAttribute("role", "button");
   const labelRow = el("div", "lang-label-row");
-  labelRow.appendChild(el("span", "lang-label", o.label));
+  labelRow.appendChild(inked("span", "lang-label", o.label));
   card.appendChild(labelRow);
   const wordEl = el("div", "lang-word"), readingEl = el("div", "lang-reading");
   card.append(wordEl, readingEl);
@@ -820,7 +855,8 @@ function soundCard(o) {
   function show() {
     const v = o.variants[current];
     wordEl.textContent = v.word;
-    if (v.alt) wordEl.appendChild(el("span", "lang-alt", " " + v.alt));
+    wordEl.lang = FONT_LANG[v.lang] || "";
+    if (v.alt) { const a = el("span", "lang-alt", " " + v.alt); a.lang = v.lang === "zh" || v.lang === "yue" ? "zh-Hans" : wordEl.lang; wordEl.appendChild(a); }
     readingEl.textContent = v.reading;
     readingEl.hidden = !v.reading;
     switchButtons.forEach((b, k) => b.setAttribute("aria-checked", String(k === current)));
@@ -907,10 +943,19 @@ function deselect() {
   if (state.view === "map") redrawMap();
 }
 
+// Language names are written in their language's ink colour (Chinese, Mandarin, and Cantonese all in the Chinese colour)
+const INK = { Chinese: "z", Mandarin: "z", Cantonese: "z", Japanese: "j", Vietnamese: "v" };
+function inked(tag, cls, name) { const e = el(tag, cls, name); if (INK[name]) e.classList.add("ink-" + INK[name]); return e; }
+
+// The language tag for each language's text, so its characters use that language's font (see :lang in style.css)
+const FONT_LANG = { ko: "ko", zh: "zh-Hant", yue: "zh-Hant", ja: "ja", vi: "vi", Korean: "ko", Chinese: "zh-Hant", Japanese: "ja", Vietnamese: "vi" };
+
 function langSection(lang, word, reading, meaning, note, say) {
   const sec = el("section", "lang");
-  sec.appendChild(el("h3", "", lang));
-  sec.appendChild(el("div", "word", word));
+  sec.appendChild(inked("h3", "", lang));
+  const wordEl = el("div", "word", word);
+  wordEl.lang = FONT_LANG[lang] || "";
+  sec.appendChild(wordEl);
   if (reading) sec.appendChild(el("div", "reading", reading));
   sec.appendChild(el("p", "meaning", meaning));
   say.forEach(x => { if (x.text) sec.appendChild(speakButton(x.text, x.lang, x.label, x.forms)); });
@@ -1072,6 +1117,7 @@ function hideSuggestions() {
 
 let searchTimer = null;
 $("search").addEventListener("input", e => {
+  delete e.target.dataset.random;
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => runSearch(e.target.value, false), 200);
 });
@@ -1101,19 +1147,75 @@ $("everyday").addEventListener("click", e => {
   e.currentTarget.setAttribute("aria-checked", String(state.everyday));
   refresh();
 });
+// Random word: like a slot machine, English meanings flicker through the search box, slowing down, and land on a
+// random word, which is then selected; the list scrolls to its card, the map moves to it. The landed word sits in the
+// search box as a label (it isn't searched); clicking into the box clears it so you can type straight away.
+let rolling = false;
 $("random").addEventListener("click", () => {
-  const pool = visibleWords().filter(i => !state.everyday || isEveryday(WORDS[i]));
+  if (rolling) return;
+  if (state.query) { $("search").value = ""; runSearch(""); }   // roll from all the words shown, not a search
+  const pool = visibleWords();
   const from = pool.length ? pool : WORDS.map((_, i) => i);
-  selectAndFly(from[Math.floor(Math.random() * from.length)]);
+  const pick = () => from[Math.floor(Math.random() * from.length)];
+  const i = pick();
+  const box = $("search"), dice = $("random");
+  const land = () => {
+    rolling = false;
+    box.classList.remove("rolling");
+    dice.classList.remove("rolling");
+    box.value = meaningOf(i).short.replace(/^≈ /, "");
+    box.dataset.random = "1";
+    selectAndFly(i);
+    if (state.view === "list") revealInList(i);
+  };
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { land(); return; }
+  rolling = true;
+  box.classList.add("rolling");
+  dice.classList.remove("rolling"); void dice.offsetWidth; dice.classList.add("rolling");
+  const delays = [40, 40, 45, 50, 55, 60, 70, 80, 95, 110, 130, 160];   // speeding past, then slowing down
+  let k = 0;
+  const step = () => {
+    if (k >= delays.length) { land(); return; }
+    box.value = meaningOf(pick()).short.replace(/^≈ /, "");
+    setTimeout(step, delays[k++]);
+  };
+  step();
 });
+// A landed random word clears as soon as you click or tab into the search box
+function clearRandomLabel() {
+  const box = $("search");
+  if (box.dataset.random) { box.value = ""; delete box.dataset.random; }
+}
+$("search").addEventListener("pointerdown", clearRandomLabel);
+$("search").addEventListener("focus", clearRandomLabel);
+
+// Scrolls the list to a word's card, loading more of the list first if the card isn't there yet
+function revealInList(i) {
+  const pos = listItems.indexOf(i);
+  if (pos < 0) return;
+  while (listShown <= pos) appendListChunk();
+  const c = document.querySelector('.card[data-index="' + i + '"]');
+  if (!c) return;
+  const wrap = $("list-wrap");
+  const top = c.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
+  const target = Math.max(0, top - wrap.clientHeight / 2 + c.offsetHeight / 2);
+  // Glide for short distances; jump straight there for long ones (a long glide would load the whole list on the way)
+  wrap.scrollTo({ top: target, behavior: Math.abs(target - wrap.scrollTop) > wrap.clientHeight * 3 ? "auto" : "smooth" });
+  // A brief flash, so it's easy to see where the list landed
+  c.classList.remove("flash");
+  void c.offsetWidth;
+  c.classList.add("flash");
+}
 document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
 
 $("about-open").addEventListener("click", () => openAbout());
+$("page-about").addEventListener("click", () => openAbout());   // on word pages, About sits beside the title
 
 // The title in the top bar resets the gallery to how it looks on arrival: no search, no filters,
 // Everyday off, no word selected, the list view at the top
 function resetGallery() {
   $("search").value = "";
+  delete $("search").dataset.random;
   state.query = ""; state.matches = null; state.matchSet = null;
   hideSuggestions();
   state.group = null;
@@ -1247,6 +1349,7 @@ function route() {
   $("word-page").hidden = !sub;
   $("word-content").hidden = !(i >= 0);
   $("about-content").hidden = !about;
+  $("page-about").hidden = about;   // shown on word pages, not on the About page itself
   [document.querySelector(".topbar"), document.querySelector(".layout")].forEach(e => { e.hidden = sub; });
   pageIndex = i;
 
@@ -1356,8 +1459,12 @@ function renderWordPage(i) {
     const row = el("div", "sound-row");
     sounds.forEach(([lang, roman, native]) => {
       const box = el("div", "sound");
-      box.append(el("span", "sound-lang", lang), el("span", "sound-roman", roman));
-      if (native !== roman) box.appendChild(el("span", "sound-native", native));
+      box.append(inked("span", "sound-lang", lang), el("span", "sound-roman", roman));
+      if (native !== roman) {
+        const n = el("span", "sound-native", native);
+        n.lang = { Korean: "ko", Japanese: "ja", Mandarin: "zh-Hans", Cantonese: "zh-Hant", Vietnamese: "vi" }[lang] || "";
+        box.appendChild(n);
+      }
       row.appendChild(box);
     });
     sec.appendChild(row);
@@ -1410,7 +1517,7 @@ function renderWordPage(i) {
     const zh = syllableAt(w[ZH_PINYIN], k, n).toLowerCase(); if (zh) reads.push(["Mandarin", pinyinMarks(zh)]);
     if (reads.length) {
       const dl = el("dl", "char-reads");
-      reads.forEach(([lang, r]) => dl.append(el("dt", lang === "Tang era" ? "tang" : "", lang), el("dd", lang === "Tang era" ? "tang" : "", r)));
+      reads.forEach(([lang, r]) => dl.append(inked("dt", lang === "Tang era" ? "tang" : "", lang), el("dd", lang === "Tang era" ? "tang" : "", r)));
       card.appendChild(dl);
     }
     const notes = soundNotes(c, hangul.length === n ? hangul[k] : "", vi, yue, zh);

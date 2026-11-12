@@ -2,12 +2,35 @@
 
 * { box-sizing: border-box; }
 
-/* One colour per language (Okabe–Ito colours, which stay distinct for colour-blind readers) */
-:root { --zh: #D55E00; --ja: #0072B2; --vi: #009E73; }
+/* Each language draws shared characters its own way: text tagged with a language uses that language's font
+   (Latin letters inside it still use Inter) */
+:lang(ko) { font-family: Inter, "Noto Sans KR", system-ui, sans-serif; }
+:lang(ja) { font-family: Inter, "Noto Sans JP", system-ui, sans-serif; }
+:lang(zh-Hant) { font-family: Inter, "Noto Sans TC", system-ui, sans-serif; }
+:lang(zh-Hans) { font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }
+:lang(vi) { font-family: Inter, "Noto Sans TC", system-ui, sans-serif; }
+
+/* Warm paper palette: a warm white page, cream boxes, and a deeper hanji tone for the word panel */
+:root {
+  --paper: #faf8f3;   /* the page */
+  --card: #fffdf9;    /* boxes, buttons, fields */
+  --panel: #efe9dd;   /* the side panel when a word is selected */
+  --hover: #f3eee4;   /* hover and pressed shading */
+  --soft: var(--soft)8dc;    /* faint dividers */
+  --line: var(--line)5c6;    /* light outlines */
+}
+
+/* One colour per language: cinnabar seal red, indigo, and celadon (they also differ in lightness, for colour-blind readers) */
+:root { --zh: #B8412E; --ja: #2F4F86; --vi: #4F8C74; }   /* "ink and seal": cinnabar, indigo, celadon */
 .lang-dot { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
 .lang-dot.lang-z { background: var(--zh); }
 .lang-dot.lang-j { background: var(--ja); }
 .lang-dot.lang-v { background: var(--vi); }
+/* Language names in their ink colour, wherever they label something */
+.ink-z, #detail .ink-z { color: var(--zh) !important; }
+.ink-j, #detail .ink-j { color: var(--ja) !important; }
+.ink-v, #detail .ink-v { color: var(--vi) !important; }
+.sound:first-child .ink-z, .sound:first-child .ink-j, .sound:first-child .ink-v { color: #fff !important; }
 [hidden] { display: none !important; }
 
 html, body {
@@ -18,10 +41,11 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  font-family: Inter, system-ui, sans-serif;
+  /* Latin text in Inter; anything else falls back to the Korean font, since the site is about Korean words */
+  font-family: Inter, "Noto Sans KR", system-ui, sans-serif;
   font-size: 15px;
   color: #000;
-  background: #fff;
+  background: var(--paper);
 }
 
 a { color: #000; }
@@ -33,13 +57,13 @@ h1, h2, h3 { text-wrap: balance; }
 button {
   padding: 6px 10px;
   border: 1px solid #000;
-  background: #fff;
+  background: var(--card);
   color: #000;
   font: inherit;
   cursor: pointer;
 }
 
-button:hover { background: #f0f0f0; }
+button:hover { background: var(--hover); }
 button[aria-pressed="true"] { background: #000; color: #fff; }
 button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
 
@@ -55,13 +79,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   align-items: center;
   --bar-gap: 14px;
   gap: 10px var(--bar-gap);
-  padding: 14px 24px;
-  border-bottom: 1px solid #000;
+  padding: 18px 30px 14px;   /* a little more room above, so the bar sits slightly lower */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);   /* a light line between the top bar and the filters */
 }
 
 .topbar h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 21px;
+  letter-spacing: -0.015em;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -78,38 +103,40 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 }
 /* Keyboard focus keeps it open; a mouse click on the title doesn't (so it folds away once the pointer leaves) */
 .topbar .brand:hover .about-slot, .topbar .brand:has(:focus-visible) .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; }
-.topbar #about-open { padding: 4px 10px; font-size: 13px; white-space: nowrap; }
+.topbar #about-open { display: inline-flex; align-items: center; height: 31px; padding: 0 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; }
 @media (hover: none) { .topbar .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; } }
 
 /* Map and List as icons */
+.view-switch button:first-child { border-radius: 8px 0 0 8px; }
+.view-switch button:last-child { border-radius: 0 8px 8px 0; }
 .view-switch button { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 32px; padding: 0; }
 .view-switch svg { width: 18px; height: 18px; }
 
 /* The title doubles as a way back to the start */
-.topbar h1 #home { padding: 0; border: 0; background: none; font: inherit; color: inherit; line-height: 1.6; }
+.topbar h1 #home { padding: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; color: inherit; line-height: 1; display: inline-flex; align-items: center; }
 .topbar h1 #home:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* The same width as the suggestions that open below it */
 .search-wrap {
   position: relative;
-  flex: 0 1 300px;
-  min-width: 170px;
+  flex: 0 1 340px;
+  min-width: 200px;
 }
 
 #search {
   width: 100%;
   padding: 6px 10px;
   border: 1px solid #000;
-  border-radius: 0;
+  border-radius: 8px;   /* rounded like the Mandarin | Cantonese switch */
   font: inherit;
   font-size: 14px;
-  background: #fff;
+  background: var(--card);
 }
 /* When typing, the box stays the same size: no outline around it, just a soft grey fill */
-#search:focus, #search:focus-visible { outline: none; background: #f3f3f3; }
+#search:focus, #search:focus-visible { outline: none; background: var(--hover); }
 #search:focus::placeholder { color: transparent; }
 /* With suggestions open, the box and the list join into one shape */
-#search[aria-expanded="true"] { background: #fff; }
+#search[aria-expanded="true"] { background: var(--card); border-radius: 8px 8px 0 0; }
 
 #suggestions {
   position: absolute;
@@ -119,29 +146,41 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   right: 0;
   max-height: 60vh;
   overflow: auto;
-  background: #fff;
+  background: var(--card);
   border: 1px solid #000;
   border-top: 0;
+  border-radius: 0 0 8px 8px;
 }
 
 #suggestions button {
   display: block;
   width: 100%;
   border: 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--soft);
   text-align: left;
   padding: 7px 10px;
 }
 
-#suggestions button[aria-selected="true"] { background: #f0f0f0; }
+#suggestions button[aria-selected="true"] { background: var(--hover); }
 #suggestions .more { padding: 7px 10px; color: #555; font-size: 13px; }
 
 .view-switch { display: flex; }
 .view-switch button + button { border-left: 0; }
 
 /* Random: a quiet text button beside search */
-.topbar .random-link { border: 0; background: none; padding: 4px 2px; font-size: 13px; color: #555; }
-.topbar .random-link:hover { background: none; color: #000; text-decoration: underline; text-underline-offset: 4px; }
+/* Random word: a dice attached to the right end of the search box, as its own segment */
+.search-wrap { display: flex; }
+.search-wrap #search { flex: 1; min-width: 0; border-radius: 8px 0 0 8px; }
+.search-wrap .dice { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; padding: 0;
+  border: 1px solid #000; border-left: 0; border-radius: 0 8px 8px 0; background: var(--card); color: #000; }
+.search-wrap .dice:hover { background: var(--hover); }
+.search-wrap .dice svg { width: 20px; height: 20px; }
+.search-wrap .dice.rolling svg { animation: dice-roll 0.9s cubic-bezier(.2,.7,.3,1); }
+@keyframes dice-roll { to { transform: rotate(360deg); } }
+.search-wrap:has(#search[aria-expanded="true"]) .dice { border-bottom-right-radius: 0; }
+#search[aria-expanded="true"] { border-radius: 8px 0 0 0 !important; }
+/* While the dice rolls, the English words flicker past in grey; the one it lands on is black */
+#search.rolling { color: #8a8478; }
 
 /* ---------- Filters, in a row above the words: languages, Everyday, and the count they change ---------- */
 
@@ -150,36 +189,38 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  border-bottom: 1px solid #eee;
+  padding: 12px 30px;
+  border-bottom: 1px solid var(--soft);
 }
 
 /* Languages: "Korean +" as plain text (it's always included), then a toggle for each other language */
 #groups { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-#groups .lang-toggle { font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
+#groups .lang-toggle { font-size: 14px; display: inline-flex; align-items: center; }
 /* Each language button carries its colour, so it doubles as the key for the dots on the words */
-#groups .lang-toggle::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none; }
-#groups .lang-toggle.lang-z::before { background: var(--zh); }
-#groups .lang-toggle.lang-j::before { background: var(--ja); }
-#groups .lang-toggle.lang-v::before { background: var(--vi); }
-.filter-divider { flex: none; width: 1px; height: 22px; background: #ccc; margin: 0 10px; }
+.filter-divider { flex: none; width: 1px; height: 22px; background: var(--line); margin: 0 10px; }
 
 /* Everyday: an on/off switch, so it reads as a setting rather than another language */
 .switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; border: 0; background: none; font-size: 14px; white-space: nowrap; }
 .switch:hover { background: none; }
-.switch-track { flex: none; position: relative; width: 34px; height: 20px; border: 1px solid #000; border-radius: 999px; background: #fff; }
+.switch-track { flex: none; position: relative; width: 34px; height: 20px; border: 1px solid #000; border-radius: 999px; background: var(--card); }
 .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #000; transition: left 0.15s; }
 .switch[aria-checked="true"] .switch-track { background: #000; }
-.switch[aria-checked="true"] .switch-track::after { left: 16px; background: #fff; }
-.switch:hover .switch-track { box-shadow: 0 0 0 3px #eee; }
+.switch[aria-checked="true"] .switch-track::after { left: 16px; background: var(--card); }
+.switch:hover .switch-track { box-shadow: 0 0 0 3px var(--soft); }
 #groups .ko-fixed { font-size: 14px; font-weight: 600; white-space: nowrap; }
 #groups .ko-plus { font-size: 14px; color: #555; margin: 0 2px; }
-#groups .lang-toggle { padding: 4px 11px; border-radius: 999px; }
-#groups .lang-toggle[aria-pressed="false"] { border-style: dashed; color: #444; }
+/* Each language button is outlined and lettered in its colour, and fills with it when switched on */
+#groups .lang-toggle { --c: #000; padding: 4px 13px; border: 1.5px solid var(--c); border-radius: 999px; background: var(--card); color: var(--c); font-weight: 500; }
+#groups .lang-toggle.lang-z { --c: var(--zh); }
+#groups .lang-toggle.lang-j { --c: var(--ja); }
+#groups .lang-toggle.lang-v { --c: var(--vi); }
+#groups .lang-toggle:hover { background: color-mix(in srgb, var(--c) 10%, var(--card)); }
+#groups .lang-toggle[aria-pressed="false"] { border-style: dashed; }   /* switched off: a dashed outline, as before */
+#groups .lang-toggle[aria-pressed="true"], #groups .lang-toggle[aria-pressed="true"]:hover { background: var(--c); color: #fff; }
 #groups .lang-toggle { touch-action: none; user-select: none; -webkit-user-select: none; }   /* so a swipe across them doesn't scroll or select text */
 #groups.swiping .lang-toggle:hover { background: inherit; }
-#groups.swiping .lang-toggle[aria-pressed="true"] { background: #000; color: #fff; }
-#groups.swiping .lang-toggle[aria-pressed="false"] { background: #fff; color: #444; }
+#groups.swiping .lang-toggle[aria-pressed="true"] { background: var(--c); color: #fff; }
+#groups.swiping .lang-toggle[aria-pressed="false"] { background: var(--card); color: var(--c); }
 
 /* View switch and About on the right */
 .topbar .view-switch { margin-left: auto; }
@@ -187,11 +228,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 /* One line above the map or list saying what's shown */
 /* The count, at the end of the filter row */
 #status {
-  margin: 0 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
   padding-left: 12px;
-  font-size: 13px;
+  font-size: 13px;   /* script.js shrinks this when a long line wouldn't fit */
   color: #333;
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* ---------- Main layout ---------- */
@@ -237,7 +282,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   z-index: 6;
   pointer-events: none;
   padding: 3px 7px;
-  background: #fff;
+  background: var(--card);
   border: 1px solid #000;
   font-size: 13px;
   white-space: nowrap;
@@ -246,15 +291,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 /* ---------- 3D map ---------- */
 
 #map-note { position: absolute; left: 12px; bottom: 10px; z-index: 3; margin: 0; max-width: calc(100% - 24px);
-  padding: 4px 8px; font-size: 12px; background: #fff; border: 1px solid #ccc; }
+  padding: 4px 8px; font-size: 12px; background: var(--card); border: 1px solid var(--line); }
 
 .map-tools, .map-hint { display: none; }
+/* The map's on-screen instructions and its zoom / reset buttons are hidden for now */
+.is-3d .map-tools, .is-3d .map-hint { display: none !important; }
 .is-3d .map-tools { display: flex; position: absolute; right: 12px; bottom: 12px; gap: 4px; z-index: 5; }
-.is-3d .map-tools button { min-width: 34px; padding: 5px 10px; background: #fff; }
-.is-3d .map-tools button:hover { background: #f0f0f0; }
+.is-3d .map-tools button { min-width: 34px; padding: 5px 10px; background: var(--card); }
+.is-3d .map-tools button:hover { background: var(--hover); }
 .is-3d .map-hint {
   display: block; position: absolute; left: 12px; bottom: 12px; z-index: 5; margin: 0;
-  font-size: 12px; color: #555; background: rgba(255, 255, 255, 0.85); padding: 2px 6px; max-width: calc(100% - 200px);
+  font-size: 12px; color: #555; background: rgba(250, 248, 243, 0.85); padding: 2px 6px; max-width: calc(100% - 200px);
 }
 
 .map3d-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
@@ -265,13 +312,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .map3d-group {
   pointer-events: auto;
   display: flex; flex-direction: column; align-items: center;
-  padding: 2px 6px; border: 0; background: rgba(255, 255, 255, 0.8);
+  padding: 2px 6px; border: 0; background: rgba(250, 248, 243, 0.8);
   font-size: 13px; font-weight: 600; white-space: nowrap; line-height: 1.25;
 }
 .map3d-group span { font-size: 11px; font-weight: 400; color: #555; }
-.map3d-group:hover { background: #fff; text-decoration: underline; }
+.map3d-group:hover { background: var(--card); text-decoration: underline; }
 .map3d-group[aria-pressed="true"] { background: #000; color: #fff; }
-.map3d-group[aria-pressed="true"] span { color: #ddd; }
+.map3d-group[aria-pressed="true"] span { color: var(--line); }
 
 .map3d-lang { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; white-space: nowrap; }
 .map3d-note { font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #777; }
@@ -281,21 +328,21 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .map3d-guide {
   position: absolute; right: 12px; top: 12px; z-index: 5;
   width: 240px; max-height: calc(100% - 80px); overflow: auto;
-  padding: 6px; background: rgba(255, 255, 255, 0.94); border: 1px solid #000;
+  padding: 6px; background: rgba(250, 248, 243, 0.94); border: 1px solid #000;
 }
 .map3d-guide p { margin: 2px 4px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
 .map3d-guide button {
   display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: baseline;
   width: 100%; padding: 4px 6px; border: 0; background: none; text-align: left; font-size: 12px; line-height: 1.3;
 }
-.map3d-guide button:hover { background: #f0f0f0; }
+.map3d-guide button:hover { background: var(--hover); }
 .map3d-guide button[aria-current="true"] { background: #000; color: #fff; }
 .map3d-guide .num { font-weight: 600; }
 .map3d-guide .count { opacity: 0.65; font-variant-numeric: tabular-nums; }
 .map3d-layer-name {
   transition: opacity 0.25s;
   font-size: 12px; font-weight: 600; white-space: nowrap; color: #000;
-  background: rgba(255, 255, 255, 0.85); padding: 1px 6px;
+  background: rgba(250, 248, 243, 0.85); padding: 1px 6px;
 }
 @media (max-width: 640px) {
   .map3d-guide { width: 170px; right: 8px; top: 8px; }
@@ -306,21 +353,21 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .map3d-word {
   position: absolute; left: 0; top: 0;
   pointer-events: auto;
-  padding: 0 3px; border: 0; background: rgba(255, 255, 255, 0.75);
+  padding: 0 3px; border: 0; background: rgba(250, 248, 243, 0.75);
   font-size: 13px; line-height: 1.3; white-space: nowrap; color: #333;
 }
 .map3d-word small { margin-left: 5px; font-size: 0.8em; color: #666; }
-.map3d-word:hover { background: #fff; color: #000; text-decoration: underline; }
+.map3d-word:hover { background: var(--card); color: #000; text-decoration: underline; }
 .map3d-word.is-strong { color: #000; font-weight: 600; }
 .map3d-word.is-selected { background: #000; color: #fff; font-weight: 600; z-index: 2; }
-.map3d-word.is-selected small { color: #ddd; }
+.map3d-word.is-selected small { color: var(--line); }
 
 /* One group: a tile close to the camera, drawn as page text the same size as the tile */
 .map3d-box {
   position: absolute; left: 0; top: 0;
   pointer-events: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 0; border: 1px solid #525252; background: #fff;
+  padding: 0; border: 1px solid #525252; background: var(--card);
   line-height: 1.12; white-space: nowrap; overflow: hidden; color: #333;
   font-weight: 500;
 }
@@ -340,7 +387,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 16px;
+  padding: 22px 30px 14px;   /* a little more room under the filters */
 }
 
 #list {
@@ -354,17 +401,35 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   width: 100%;
   text-align: left;
   padding: 10px;
-  border: 1px solid #ccc;
-  background: #fff;
+  border: 1px solid #a39d91;   /* a soft warm grey, so the grid of words reads lighter */
+  background: var(--card);
 }
 
-.card:hover { border-color: #000; background: #fff; }
-.card[aria-pressed="true"] { border: 2px solid #000; padding: 9px; background: #fff; color: #000; }
+.card:hover { background: var(--hover); border-color: #000; }
+/* The selected word: a thicker outline drawn inside the box, so nothing around it moves */
+.card[aria-pressed="true"] { background: var(--card); color: #000; border-color: #000; box-shadow: inset 0 0 0 1px #000; }
+/* The card the Random word button landed on flashes once */
+.card.flash { animation: card-flash 1.4s ease-out; }
+@keyframes card-flash { 0%, 25% { background: #000; color: #fff; } 100% { background: var(--card); } }
+.card.flash .ko .hj, .card.flash .roman { animation: card-flash-sub 1.4s ease-out; }
+@keyframes card-flash-sub { 0%, 25% { color: #ccc; } }
+@media (prefers-reduced-motion: reduce) { .card.flash, .card.flash .ko .hj, .card.flash .roman { animation: none; } }
 
-.card .ko { font-size: 18px; }
-.card .roman { font-size: 13px; color: #555; }
-.card .gloss { font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card .tags { position: relative; margin-top: 8px; display: flex; gap: 5px; height: 10px; }
+/* Inside a card: the meaning as the headline, the Korean and Hanja below, the romanization, then the sharing bar */
+/* Every card is the same height: room for a two-line meaning (the longest a card shows), with the bar at the bottom */
+.card { position: relative; display: flex; flex-direction: column; height: 138px; padding: 11px 12px 12px; overflow: hidden; }
+.card .gloss { font-size: 20px; font-weight: 600; line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .gloss.borrowed { font-weight: 500; }
+.card .ko { margin-top: 6px; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .ko .hj { margin-left: 6px; font-weight: 400; color: #6a645a; }
+.card .roman { font-size: 13px; font-style: italic; color: #6a645a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Three fixed slots: Chinese, Japanese, Vietnamese */
+.share-bar { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: auto; padding-top: 12px; }
+.share-bar i { height: 4px; border-radius: 2px; background: #ebe5d9; }
+.share-bar i.on.lang-z { background: var(--zh); }
+.share-bar i.on.lang-j { background: var(--ja); }
+.share-bar i.on.lang-v { background: var(--vi); }
 
 #list-end {
   text-align: center;
@@ -378,7 +443,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   width: 420px;
   flex-shrink: 0;
   overflow: auto;
-  padding: 16px 20px 24px;
+  padding: 16px 26px 24px;
   border-left: 1px solid #000;
 }
 
@@ -412,7 +477,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 #detail table.sounds td {
   text-align: left;
   padding: 3px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--soft);
 }
 
 #detail table.sounds th { font-weight: 500; width: 40%; color: #555; }
@@ -450,23 +515,25 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 #detail .intro p { line-height: 1.5; }
 #detail .intro { display: flex; flex-direction: column; min-height: 100%; padding: 24px 4px 0; }
 #detail .intro p { margin: 0 0 14px; }
-#detail .intro-title { margin: 0 0 16px; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; }
+#detail .intro-title { margin: 0 0 16px; font-size: 32px; font-weight: 600; line-height: 1.12; letter-spacing: -0.01em; }
 #detail .intro-lead { font-size: 16px; }
 
 /* What each language calls the characters: one row per language */
-#detail .char-names { margin: 4px 0 18px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
-#detail .char-name {
-  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "lang lang" "say word";
-  align-items: baseline; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid #ddd;
+/* 漢字 large on the left, the four names in two columns beside it. The three columns are spread so the space
+   between 漢字 and the first column equals the space between the two columns of names. */
+#detail .char-names {
+  display: grid; grid-template-columns: auto auto auto; grid-auto-flow: column; grid-template-rows: auto auto;
+  justify-content: space-between; align-items: center; gap: 18px 0;   /* room between the two rows of names */
+  margin: 4px 0 18px; padding: 22px 0; border-top: 1px solid #000; border-bottom: 1px solid #000;
 }
-#detail .char-name:last-child { border-bottom: 0; }
-#detail .char-name-lang { grid-area: lang; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; }
-#detail .char-name-say { grid-area: say; font-size: 24px; font-weight: 500; }
-#detail .char-name-word { grid-area: word; justify-self: end; font-size: 16px; color: #555; }
+#detail .char-glyph { grid-row: 1 / span 2; font-size: 54px; font-weight: 500; line-height: 1; }
+#detail .char-name { display: flex; flex-direction: column; }
+#detail .char-name-lang { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #5a554c; }
+#detail .char-name-say { font-size: 18px; font-weight: 500; }
 
 /* The example word: one word read in four languages; clicking it opens the word */
-#detail .intro-example { display: block; width: 100%; margin: 0 0 18px; padding: 12px 14px 14px; border: 0; background: #f4f4f4; text-align: left; }
-#detail .intro-example:hover { background: #ebebeb; }
+#detail .intro-example { display: block; width: 100%; margin: 0 0 18px; padding: 12px 14px 14px; border: 0; background: var(--hover); text-align: left; }
+#detail .intro-example:hover { background: var(--hover); }
 #detail .ex-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
 #detail .ex-ko { font-size: 22px; }
 #detail .ex-sub { font-size: 15px; color: #555; }
@@ -476,7 +543,10 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 #detail .ex-say { font-size: 15px; }
 
 #detail .legend { font-size: 13px; color: #333; }
-#detail .intro-more { align-self: flex-start; margin-top: 4px; padding: 8px 14px; font-size: 14px; }
+/* "More about Hanja Roots": an underlined text link */
+#detail .intro-more { align-self: flex-start; margin-top: 4px; padding: 0; border: 0; background: none; font-size: 14.5px; font-weight: 500;
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+#detail .intro-more:hover { background: none; text-decoration-thickness: 2px; }
 
 /* ---------- About page: contents on the left, wide sections on the right ---------- */
 
@@ -518,7 +588,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 .about-bars { display: flex; flex-direction: column; gap: 10px; }
 .about-bar { display: grid; grid-template-columns: 90px minmax(0, 1fr) 120px; align-items: center; gap: 12px; font-size: 14px; }
 .about-bar > span:last-child { text-align: right; color: #333; font-variant-numeric: tabular-nums; }
-.about-bar .bar { height: 12px; background: #eee; }
+.about-bar .bar { height: 12px; background: var(--soft); }
 .about-bar .bar i { display: block; height: 100%; }
 .about-bar .bar i.lang-z { background: var(--zh); }
 .about-bar .bar i.lang-j { background: var(--ja); }
@@ -528,17 +598,17 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 
 .about-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
 .about-cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.about-card { padding: 16px 0 6px; border-top: 1px solid #ddd; }
+.about-card { padding: 16px 0 6px; border-top: 1px solid var(--line); }
 .about-card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
 .about-card p { font-size: 14.5px; color: #222; }
 
 .about-terms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; margin: 0; }
-.about-terms div { padding: 16px 0 10px; border-top: 1px solid #ddd; }
+.about-terms div { padding: 16px 0 10px; border-top: 1px solid var(--line); }
 .about-terms dt { margin-bottom: 4px; font-weight: 600; }
 .about-terms dd { margin: 0; font-size: 14.5px; color: #222; }
 
 .about-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 32px; }
-.about-sources > div { padding: 16px 0 6px; border-top: 1px solid #ddd; }
+.about-sources > div { padding: 16px 0 6px; border-top: 1px solid var(--line); }
 .about-sources h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
 .about-sources p { font-size: 14px; color: #222; }
 .about-fineprint { margin-top: 18px !important; font-size: 13px; color: #555; }
@@ -565,12 +635,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
   max-width: 420px; overflow: hidden;
   transition: max-width 0.3s ease, margin-right 0.3s ease, opacity 0.25s ease, visibility 0s linear 0s;
 }
-@media (min-width: 901px) {   /* only when the side panel (and its title) sits beside the words */
-  body.intro-showing .topbar .brand {
-    max-width: 0; margin-right: calc(-1 * var(--bar-gap)) !important; opacity: 0; visibility: hidden;   /* also cancels the gap after it */
-    transition: max-width 0.3s ease, margin-right 0.3s ease, opacity 0.2s ease, visibility 0s linear 0.3s;
-  }
-}
+/* (The top bar title used to hide while the intro showed; it now always stays put.) */
 
 #word-page {
   flex: 1;
@@ -586,15 +651,17 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 24px;   /* same as the top bar, so the title stays put between pages */
-  background: #fff;
+  padding: 18px 30px 14px;   /* same as the top bar, so the title stays put between pages */
+  background: var(--card);
   border-bottom: 1px solid #000;
 }
 @media (max-width: 640px) { .page-bar { padding: 10px 16px; } }
 
+.page-bar { justify-content: flex-start; }
+.page-bar #page-about { display: inline-flex; align-items: center; height: 31px; padding: 0 12px; border-radius: 8px; font-size: 13px; }
 .page-bar #back.page-site {
-  margin-right: auto; line-height: 1.6; padding: 0; border: 0; background: none;
-  font-size: 18px; font-weight: 600; cursor: pointer;   /* the site's name doubles as the way back to the gallery */
+  line-height: 1; height: 31px; display: inline-flex; align-items: center; line-height: 1.6; padding: 0; border: 0; background: none;
+  font-size: 21px; font-weight: 600; letter-spacing: -0.015em; cursor: pointer;   /* the site's name doubles as the way back to the gallery; sized like the top bar's */
 }
 .page-bar #back.page-site:hover { text-decoration: underline; background: none; }
 
@@ -652,7 +719,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 }
 
 .sound:first-child { background: #000; color: #fff; }
-.sound:first-child .sound-lang, .sound:first-child .sound-native { color: #ddd; }
+.sound:first-child .sound-lang, .sound:first-child .sound-native { color: var(--line); }
 
 .sound-lang { font-size: 12px; color: #555; }
 .sound-roman { font-size: 24px; font-weight: 500; }
@@ -674,7 +741,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 .lang-grid section.lang .word { font-size: 30px; line-height: 1.2; }
 .lang-grid section.lang .reading { font-size: 15px; color: #333; margin-top: 2px; }
 .lang-grid section.lang .meaning { margin: 10px 0; line-height: 1.45; }
-.lang-grid section.lang.missing { border-color: #ccc; color: #777; }
+.lang-grid section.lang.missing { border-color: var(--line); color: #777; }
 .lang-grid .note { display: block; margin-top: 6px; font-size: 12px; color: #555; }
 .lang-grid .missing-text { display: block; font-size: 14px; }
 
@@ -701,7 +768,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 .char-reads dd { margin: 0; }
 
 .char-reads .tang { font-weight: 600; color: #000; }
-.why { margin-top: 12px; padding: 10px 12px; background: #f3f3f3; }
+.why { margin-top: 12px; padding: 10px 12px; background: var(--hover); }
 .why h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
 .why ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.45; }
 .why li + li { margin-top: 4px; }
@@ -716,9 +783,9 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
   width: 100%;
   text-align: left;
   padding: 6px 8px;
-  border-color: #ccc;
+  border-color: var(--line);
 }
-.word-chip:hover { border-color: #000; background: #fff; }
+.word-chip:hover { border-color: #000; background: var(--card); }
 .chip-ko { white-space: nowrap; }
 .chip-en { flex: 1; min-width: 0; font-size: 13px; color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-tags { position: relative; display: flex; gap: 4px; flex: none; }
@@ -735,8 +802,6 @@ details.voices summary { cursor: pointer; }
   /* With the side panel beside it, the top bar is narrow: Random shrinks to its icon so everything stays on one row */
   .topbar { flex-wrap: nowrap; --bar-gap: 12px; gap: 10px var(--bar-gap); }
   .topbar .brand { margin-right: 4px; }
-  .topbar .random-label { display: none; }
-  .topbar .random-link { font-size: 18px; padding: 2px 4px; }
 }
 
 @media (min-width: 901px) and (max-width: 1000px) {
@@ -745,13 +810,12 @@ details.voices summary { cursor: pointer; }
   .topbar .brand { order: 1; }
   .topbar .view-switch { order: 2; }
   .topbar .view-switch { margin-left: auto; }
-  .search-wrap { order: 4; flex: 1 1 calc(100% - 60px); }   /* always on the second row, whether About is open or not */
-  .topbar .random-link { order: 5; }
+  .search-wrap { order: 4; flex: 1 1 100%; }   /* always on the second row, whether About is open or not */
 }
 
 @media (max-width: 1100px) {
   /* The count drops below the filters when they no longer fit beside it */
-  .filter-row { padding: 10px 16px; }
+  .filter-row { padding: 10px 30px; }   /* same 30px edge as the top bar and the list */
   #status { flex-basis: 100%; margin: 0; padding: 0; text-align: left; }
 }
 
@@ -761,10 +825,14 @@ details.voices summary { cursor: pointer; }
   .topbar .brand { flex: 1 1 100%; width: auto; margin: 0; }
   .search-wrap { order: 3; flex: 1 1 auto; width: auto; }
   #search { font-size: 16px; }   /* 16px or more, so phones don't zoom in when the box is tapped */
-  .topbar .random-link { order: 4; }
   .topbar .view-switch { order: 5; margin-left: 0; }
   #groups { gap: 5px; }
   #groups .lang-toggle { padding: 4px 8px; font-size: 13px; }
+  /* Phones: narrower side padding everywhere */
+  .filter-row, #list-wrap { padding-left: 16px; padding-right: 16px; }
+  #detail { padding-left: 16px; padding-right: 16px; }
+  .panel-head { padding-left: 16px; padding-right: 16px; }
+  .lang-card { margin-left: 16px; margin-right: 16px; }
   .filter-divider { display: none; }
 }
 
@@ -795,77 +863,76 @@ details.voices summary { cursor: pointer; }
 #detail .close-circle {
   position: absolute; top: 14px; right: 14px; z-index: 2;
   width: 30px; height: 30px; padding: 0; border: 1.5px solid #000; border-radius: 50%;
-  background: #fff; font-size: 20px; line-height: 26px; text-align: center;
+  background: var(--card); font-size: 20px; line-height: 26px; text-align: center;
 }
 #detail .close-circle:hover { background: #000; color: #fff; }
 
-.panel-head { padding: 40px 20px 22px; }
-#detail .panel-en { margin: 0; font-size: 32px; font-weight: 600; line-height: 1.15; }
+.panel-head { padding: 40px 30px 28px; }   /* the first language box lines up with the first row of word cards */
+#detail .panel-en { margin: 0; font-size: 34px; font-weight: 600; line-height: 1.15; }
 #detail .panel-en.borrowed { font-weight: 500; }
 .panel-note { margin: 6px 0 0; font-size: 13px; color: #555; line-height: 1.4; }
 
 .lang-card {
   position: relative; display: block; flex: none;
-  margin: 0 20px 14px; padding: 14px 62px 16px 16px;
-  border: 1px solid #000; background: #fff; color: #000; cursor: pointer;
+  margin: 0 30px 14px; padding: 14px 54px 16px 16px;
+  border: 1px solid #000; border-radius: 12px; background: var(--card); color: #000; cursor: pointer;
 }
-.lang-card:hover { background: #f4f4f4; }
+.lang-card:hover { background: var(--hover); }
 .lang-card:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
 .lang-label-row { display: flex; align-items: center; gap: 10px; min-height: 18px; }
-.lang-label { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #444; }
-.lang-word { margin-top: 6px; font-size: 24px; line-height: 1.2; }
-.lang-alt { font-size: 16px; color: #555; }
-.lang-reading { margin-top: 2px; font-size: 15px; color: #444; }
-.lang-def { margin-top: 6px; font-size: 12.5px; line-height: 1.4; color: #222; }
+.lang-label { font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: #5a554c; }
+.lang-word { margin-top: 6px; font-size: 26px; font-weight: 500; line-height: 1.25; }
+.lang-alt { font-size: 17px; font-weight: 400; color: #6a645a; }
+.lang-reading { margin-top: 2px; font-size: 15px; font-style: italic; color: #4a453d; }   /* romanization in italics: a pronunciation */
+.lang-def { margin-top: 6px; font-size: 14px; line-height: 1.4; color: #222; }
 .lang-status { margin-top: 4px; font-size: 12px; color: #666; }
 .lang-status:empty { display: none; }
 .lang-status.error { color: #a00; }
 /* Languages without the word: a small grey box at the end, just the note */
-.lang-card.missing { padding: 9px 14px; border-color: #ccc; color: #888; cursor: default; }
-.lang-card.missing:hover { background: #fff; }
+.lang-card.missing { padding: 9px 14px; border-color: var(--line); color: #888; cursor: default; }
+.lang-card.missing:hover { background: var(--card); }
 .lang-card.missing .lang-def { margin: 0; font-size: 13px; color: #888; }
 
 /* The Mandarin | Cantonese switch: a clearly pressable pair of buttons */
 .variant-switch {
-  position: absolute; top: 12px; right: 16px;
+  position: absolute; top: 14px; right: 14px;   /* the same distance from the box's top and right edges */
   display: inline-flex;
-  border: 1.5px solid #000; border-radius: 999px; overflow: hidden; background: #fff;
+  border: 1.5px solid #000; border-radius: 8px; overflow: hidden; background: var(--card);   /* rounded like the boxes */
 }
 .variant-switch button {
-  padding: 6px 14px; border: 0; border-radius: 0; background: #fff; color: #000;
+  padding: 6px 14px; border: 0; border-radius: 0; background: var(--card); color: #000;
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .variant-switch button + button { border-left: 1.5px solid #000; }
-.variant-switch button:hover { background: #e6e6e6; }
+.variant-switch button:hover { background: var(--hover); }
 .variant-switch button[aria-checked="true"] { background: #000; color: #fff; }
-.variant-switch button:disabled { color: #aaa; cursor: not-allowed; background: #fff; }
+.variant-switch button:disabled { color: #aaa; cursor: not-allowed; background: var(--card); }
 .variant-switch button:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
 
 /* The speaker: an outline normally, filled in while playing */
-.speaker { position: absolute; right: 20px; bottom: 18px; width: 34px; height: 26px;
+.speaker { position: absolute; right: 12px; bottom: 18px; width: 34px; height: 26px;
   fill: none; stroke: #000; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.lang-card.is-playing { background: #f4f4f4; }
+.lang-card.is-playing { background: var(--hover); }
 .lang-card.is-playing .speaker .cone { fill: #000; }
 .lang-card.is-playing .speaker .wave { animation: speaker-pulse 0.9s ease-in-out infinite; }
 @keyframes speaker-pulse { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { .lang-card.is-playing .speaker .wave { animation: none; } }
 
-.full-breakdown {
-  position: sticky; bottom: 0; flex: none;
-  display: block; width: 100%; margin-top: auto; padding: 16px 20px;
-  border: 0; border-top: 1px solid #000; background: #fff;
-  text-align: left; font-size: 15px; font-weight: 500;
+/* "Trace its roots": a small link under the English heading */
+.trace-link {
+  display: inline-block; margin-top: 10px; padding: 0; border: 0; background: none;
+  font-size: 14px; color: #000; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; cursor: pointer;
 }
-.lang-card + .full-breakdown { margin-top: auto; }
+.trace-link b { font-weight: 400; font-size: 16px; }
+.trace-link:hover { background: none; text-decoration-thickness: 2px; }
 #detail.has-word .lang-card:last-of-type { margin-bottom: 20px; }
-.full-breakdown:hover { background: #f4f4f4; }
 
 /* ---------- Welcome: a pale layer over the words on arrival, with what to do; any click fades it ---------- */
 #welcome {
   position: absolute; inset: 0; z-index: 20;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
   padding: 40px;
-  background: rgba(255, 255, 255, 0.84);
+  background: rgba(250, 248, 243, 0.84);
   -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
   cursor: pointer;
   opacity: 1; transition: opacity 0.4s ease;
@@ -874,3 +941,9 @@ details.voices summary { cursor: pointer; }
 #welcome .welcome-text { max-width: 520px; margin: 0; font-size: 28px; font-weight: 600; line-height: 1.3; text-align: center; }
 #welcome .welcome-hint { margin: 0; font-size: 14px; color: #555; }
 @media (max-width: 640px) { #welcome { padding: 24px; } #welcome .welcome-text { font-size: 22px; } }
+
+/* ---------- A selected word in the side panel: a deeper hanji tone, with cream language boxes ---------- */
+#detail.has-word { background: var(--panel); }
+#detail.has-word .lang-card.missing { background: transparent; border-color: #cbc2b1; }
+#detail.has-word .lang-card.missing:hover { background: transparent; }
+#detail.has-word .lang-card.missing .lang-def { color: #8a8478; }

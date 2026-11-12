@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hanja Roots</title>
-  <link rel="stylesheet" href="style.css?v=20261112m">
+  <!-- Fonts: Inter for English and Vietnamese; Noto Sans in its Korean, Japanese, and Traditional and Simplified Chinese
+       versions, so shared characters are drawn the way each language writes them -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css?v=20261113x">
 </head>
 <body>
 
@@ -21,8 +26,10 @@
         <input id="search" type="search" placeholder="Search" title="Search in any language, or in English" autocomplete="off"
                aria-controls="suggestions" aria-expanded="false">
         <div id="suggestions" role="listbox" hidden></div>
+        <button type="button" id="random" class="dice" aria-label="Random word" title="Random word">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+        </button>
       </div>
-      <button type="button" id="random" class="random-link" aria-label="Random word" title="Open a random word (from the words shown)"><span class="random-label">Random word </span><span aria-hidden="true">↻</span></button>
       <div class="view-switch" role="group" aria-label="View">
         <button type="button" data-view="map" aria-pressed="false" aria-label="Map" title="Map">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/></svg>
@@ -35,8 +42,9 @@
     <section id="view">
       <div class="filter-row">
         <div id="groups"></div>
-        <span class="filter-divider" aria-hidden="true"></span>
-        <button type="button" id="everyday" class="switch" role="switch" aria-checked="false"
+        <!-- Everyday words switch: hidden for now (set state.everyday in script.js still works if it comes back) -->
+        <span class="filter-divider" aria-hidden="true" hidden></span>
+        <button type="button" id="everyday" hidden class="switch" role="switch" aria-checked="false"
                 title="Show only (in the list) or highlight (in the map) the 2,183 words Korean learners meet first"><span class="switch-track" aria-hidden="true"></span>Everyday words</button>
         <p id="status" aria-live="polite"></p>
       </div>
@@ -68,6 +76,7 @@
   <div id="word-page" hidden>
     <nav class="page-bar" aria-label="Page">
       <button type="button" id="back" class="page-site" aria-label="Hanja Roots, back to the gallery" title="Back to the gallery">Hanja Roots</button>
+      <button type="button" id="page-about">About</button>
     </nav>
     <main id="word-content"></main>
     <main id="about-content" hidden>
@@ -115,9 +124,9 @@
               </div>
               <p class="about-bars-title">Also a word in…</p>
               <div class="about-bars">
-                <div class="about-bar"><span>Chinese</span><span class="bar"><i class="lang-z" style="width:33.4%"></i></span><span>11,828 · 33.4%</span></div>
-                <div class="about-bar"><span>Japanese</span><span class="bar"><i class="lang-j" style="width:57.2%"></i></span><span>20,262 · 57.2%</span></div>
-                <div class="about-bar"><span>Vietnamese</span><span class="bar"><i class="lang-v" style="width:11.2%"></i></span><span>3,964 · 11.2%</span></div>
+                <div class="about-bar"><span class="ink-z">Chinese</span><span class="bar"><i class="lang-z" style="width:33.4%"></i></span><span>11,828 · 33.4%</span></div>
+                <div class="about-bar"><span class="ink-j">Japanese</span><span class="bar"><i class="lang-j" style="width:57.2%"></i></span><span>20,262 · 57.2%</span></div>
+                <div class="about-bar"><span class="ink-v">Vietnamese</span><span class="bar"><i class="lang-v" style="width:11.2%"></i></span><span>3,964 · 11.2%</span></div>
                 <div class="about-bar"><span>All three</span><span class="bar"><i class="all" style="width:9.5%"></i></span><span>3,350 · 9.5%</span></div>
               </div>
               <p class="about-bars-note">Share of all 35,411 words checked.</p>
@@ -130,9 +139,10 @@
           <div class="about-cards">
             <div class="about-card">
               <h3>List</h3>
-              <p>Every word as a card, everyday words first. The coloured dots show which languages share it:
-                 <span class="lang-dot lang-z"></span> Chinese, <span class="lang-dot lang-j"></span> Japanese,
-                 <span class="lang-dot lang-v"></span> Vietnamese.</p>
+              <p>Every word as a card, everyday words first: its English meaning, the Korean word and its Hanja, and how it's
+                 read. The bar along the bottom has a slot for each language, in the same order every time, coloured when
+                 that language shares the word: <span class="lang-dot lang-z"></span> Chinese, <span class="lang-dot lang-j"></span>
+                 Japanese, <span class="lang-dot lang-v"></span> Vietnamese.</p>
             </div>
             <div class="about-card">
               <h3>Map</h3>
@@ -153,11 +163,6 @@
               <h3>Choosing languages</h3>
               <p>Every word is Korean. Switch Chinese, Japanese, and Vietnamese on or off to see the words shared by exactly those
                  languages, or press one and swipe across the others to change several at once. With none on, you see every word.</p>
-            </div>
-            <div class="about-card">
-              <h3>Everyday words</h3>
-              <p>The switch shows only (in the list) or highlights (in the map) the 2,183 words Korea's Basic Korean Dictionary marks
-                 as beginner or intermediate vocabulary.</p>
             </div>
             <div class="about-card">
               <h3>A word up close</h3>
@@ -249,14 +254,14 @@
                  Hanja, English equivalents, and learner levels. Other words come from
                  <a href="https://github.com/garfieldnate/kengdic" target="_blank" rel="noopener">kengdic</a> (MPL 2.0 or LGPL), whose
                  Hanja spellings are less reliable.</p></div>
-            <div><h3>Chinese</h3>
+            <div><h3 class="ink-z">Chinese</h3>
               <p><a href="https://cc-cedict.org/" target="_blank" rel="noopener">CC-CEDICT</a> (CC BY-SA 4.0), matched by traditional
                  characters. Cantonese readings from <a href="https://github.com/CanCLID/to-jyutping" target="_blank" rel="noopener">to-jyutping</a>
                  (BSD-2-Clause).</p></div>
-            <div><h3>Japanese</h3>
+            <div><h3 class="ink-j">Japanese</h3>
               <p><a href="https://www.edrdg.org/jmdict/j_jmdict.html" target="_blank" rel="noopener">JMdict</a>, property of the
                  Electronic Dictionary Research and Development Group (CC BY-SA 4.0).</p></div>
-            <div><h3>Vietnamese</h3>
+            <div><h3 class="ink-v">Vietnamese</h3>
               <p>Words and meanings from <a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a> via
                  <a href="https://kaikki.org/dictionary/Vietnamese/" target="_blank" rel="noopener">Kaikki.org</a> and
                  <a href="https://github.com/nguyen18/which-dialect" target="_blank" rel="noopener">which-dialect</a> (CC BY-SA 4.0);
@@ -278,14 +283,14 @@
   </div>
 
 
-  <script src="lib/three.min.js?v=20261112m"></script>
-  <script src="lib/OrbitControls.js?v=20261112m"></script>
-  <script src="words.js?v=20261112m"></script>
-  <script src="characters.js?v=20261112m"></script>
-  <script src="romanize.js?v=20261112m"></script>
-  <script src="recordings.js?v=20261112m"></script>
-  <script src="speech.js?v=20261112m"></script>
-  <script src="map3d.js?v=20261112m"></script>
-  <script src="script.js?v=20261112m"></script>
+  <script src="lib/three.min.js?v=20261113x"></script>
+  <script src="lib/OrbitControls.js?v=20261113x"></script>
+  <script src="words.js?v=20261113x"></script>
+  <script src="characters.js?v=20261113x"></script>
+  <script src="romanize.js?v=20261113x"></script>
+  <script src="recordings.js?v=20261113x"></script>
+  <script src="speech.js?v=20261113x"></script>
+  <script src="map3d.js?v=20261113x"></script>
+  <script src="script.js?v=20261113x"></script>
 </body>
 </html>
