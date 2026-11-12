@@ -85,7 +85,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 
 .topbar h1 {
   margin: 0;
-  font-size: 21px;
+  font-size: 22px;
   letter-spacing: -0.015em;
   font-weight: 600;
   white-space: nowrap;
@@ -413,7 +413,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 
 #list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  /* at most 4 to a row (each card at least a quarter of the row), and fewer on smaller screens (each at least 170px) */
+  grid-template-columns: repeat(auto-fill, minmax(max(170px, calc((100% - 3 * 8px) / 4)), 1fr));
   gap: 8px;
 }
 
@@ -423,6 +424,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   text-align: left;
   padding: 10px;
   border: 1px solid #a39d91;   /* a soft warm grey, so the grid of words reads lighter */
+  border-radius: 8px;          /* the same rounding as the search box */
   background: var(--card);
 }
 
@@ -436,18 +438,21 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 @keyframes card-flash-sub { 0%, 25% { color: #ccc; } }
 @media (prefers-reduced-motion: reduce) { .card.flash, .card.flash .ko .hj, .card.flash .roman { animation: none; } }
 
-/* Inside a card: the meaning as the headline, the Korean and Hanja below, the romanization, then the sharing bar */
-/* Every card is the same height: room for a two-line meaning (the longest a card shows), with the bar at the bottom */
-.card { position: relative; display: flex; flex-direction: column; height: 138px; padding: 11px 12px 12px; overflow: hidden; }
-.card .gloss { font-size: 20px; font-weight: 600; line-height: 1.2;
+/* Inside a card: the meaning as the headline, the Korean and Hanja below, then the romanization; the language dots
+   sit in a column on the right edge */
+/* Every card is the same height: room for a two-line meaning (the longest a card shows) */
+.card { position: relative; display: flex; flex-direction: column; height: 100px; padding: 11px 30px 12px 12px; overflow: hidden; }
+.card .gloss { font-size: 16px; font-weight: 600; line-height: 1.2;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card .gloss.borrowed { font-weight: 500; }
-.card .ko { margin-top: 6px; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .ko { margin-top: 9px; font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card .ko .hj { margin-left: 6px; font-weight: 400; color: #6a645a; }
-.card .roman { font-size: 13px; font-style: italic; color: #6a645a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Three fixed slots: Chinese, Japanese, Vietnamese */
-.share-bar { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: auto; padding-top: 12px; }
-.share-bar i { height: 4px; border-radius: 2px; background: #ebe5d9; }
+.card .roman { font-size: 10px; font-style: italic; color: #6a645a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Three fixed slots, top to bottom: Chinese, Japanese, Vietnamese. A filled dot when that language shares the word,
+   an empty ring when it doesn't */
+.share-bar { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); display: flex; flex-direction: column; gap: 5px; }
+.share-bar i { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1px #d6cdbd; }
+.share-bar i.on { box-shadow: none; }
 .share-bar i.on.lang-z { background: var(--zh); }
 .share-bar i.on.lang-j { background: var(--ja); }
 .share-bar i.on.lang-v { background: var(--vi); }
@@ -841,14 +846,26 @@ details.voices summary { cursor: pointer; }
 }
 
 @media (max-width: 640px) {
-  /* Phones: title and About; search and Random; view switch; then the filters */
-  .topbar { --bar-gap: 8px; gap: 8px; padding: 10px 16px; }
-  .topbar .brand { flex: 1 1 100%; width: auto; margin: 0; }
-  .search-wrap { order: 3; flex: 1 1 auto; width: auto; }
-  #search { font-size: 16px; }   /* 16px or more, so phones don't zoom in when the box is tapped */
-  .topbar .view-switch { order: 5; margin-left: 0; }
-  #groups { gap: 5px; }
-  #groups .lang-toggle { padding: 4px 8px; font-size: 13px; }
+  /* Phones: one row of title, search (with Random), and the view switch; then the filters. About is reached from the
+     side panel's "More about Hanja Roots" instead, to leave the search room */
+  .topbar { flex-wrap: nowrap; --bar-gap: 8px; gap: 8px; padding: 10px 16px; }
+  .topbar .brand { flex: none; width: auto; margin: 0 10px 0 0; }   /* 18px to the search bar, with the gap */
+  .topbar .about-slot { display: none; }
+  .search-wrap { order: 0; flex: 1 1 auto; width: auto; min-width: 0; }
+  #search { font-size: 16px; padding-left: 8px; padding-right: 6px; }   /* 16px or more, so phones don't zoom in when the box is tapped */
+  #search::placeholder { font-size: 14px; }   /* "Search" at the same size as on a computer, next to the title */
+  .search-wrap .dice { width: 34px; }
+  .topbar .view-switch { order: 0; flex: none; margin-left: 0; }
+  .view-switch button { width: 34px; }
+  #suggestions button { white-space: normal; overflow-wrap: anywhere; }   /* long suggestions wrap in the narrower list */
+  /* the count goes back to the end of the language buttons' row, right-aligned */
+  /* (on the narrowest phones, where it can't fit, it drops to its own row, still right-aligned) */
+  #groups { flex-wrap: nowrap; }
+  #status { flex: 1 0 auto; flex-basis: auto; min-width: auto; overflow: visible; padding-left: 0; text-align: right; font-size: 11px; }
+  #groups { gap: 3px; }
+  #groups .lang-toggle { padding: 3px 6px; font-size: 12px; }
+  #groups .ko-fixed, #groups .ko-plus { font-size: 12.5px; }
+  #groups .ko-plus { margin: 0 1px; }
   /* Phones: narrower side padding everywhere */
   .filter-row, #list-wrap, .map-bar { padding-left: 16px; padding-right: 16px; }
   #reset-view { left: 16px; }
@@ -955,3 +972,41 @@ details.voices summary { cursor: pointer; }
 #detail.has-word .lang-card.missing { background: transparent; border-color: #cbc2b1; }
 #detail.has-word .lang-card.missing:hover { background: transparent; }
 #detail.has-word .lang-card.missing .lang-def { color: #8a8478; }
+
+/* ---------- Phones: the list as rows, and a word opens in a sheet from the bottom ---------- */
+
+#sheet-backdrop { display: none; }
+
+@media (max-width: 640px) {
+  /* The top bar stays in view while the page scrolls */
+  .topbar { position: sticky; top: 0; z-index: 30; background: var(--paper); }
+
+  /* One word per row: meaning, then Hangul and Hanja, with the language dots on the right. The list scrolls with the page. */
+  #list-wrap { max-height: none; overflow: visible; padding-top: 6px; }
+  #list { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .card { height: auto; padding: 11px 30px 11px 0; border: 0; border-bottom: 1px solid #ddd4c4; border-radius: 0; background: transparent; }
+  .card:hover { background: transparent; border-color: #ddd4c4; }
+  /* the selected row's shading runs out to the screen's edges (16px each side, the list's padding) */
+  .card[aria-pressed="true"] { background: var(--hover); border-color: #ddd4c4; box-shadow: -16px 0 0 var(--hover), 16px 0 0 var(--hover); }
+  .card .gloss { -webkit-line-clamp: 1; }
+  .card .ko { margin-top: 3px; }
+  .card .roman { display: none; }
+  .card .share-bar { right: 6px; }
+
+  /* A selected word: its panel slides up over the page; tap outside it, or pull it down, to close */
+  #detail.has-word {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    max-height: 72vh; overflow: auto; overscroll-behavior: contain;
+    border-top: 1px solid #000; border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
+    animation: sheet-up 0.28s ease-out;
+  }
+  #detail.has-word .panel-head { padding-top: 30px; }
+  #detail.has-word::before {   /* the grab handle */
+    content: ""; position: sticky; top: 0; flex: none; align-self: center; width: 40px; height: 4px; margin-top: 9px; margin-bottom: -13px;
+    border-radius: 2px; background: #b5ab98; z-index: 1;
+  }
+  body:has(#detail.has-word) #sheet-backdrop { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.18); }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { #detail.has-word { animation: none; } }

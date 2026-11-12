@@ -89,15 +89,19 @@ function updateStatus() {
   const where = state.group === null ? "" : " " + shortWhere(state.group);
   const listOnly = state.everyday && state.view === "list";   // the list shows only everyday words
   const inGroup = i => state.group === null || WORDS[i][CAT] === state.group;
-  let count;
+  let count, bare;   // bare: just the number, for phones ("21,838 words", "261 matches")
   if (state.matches) {
     const n = listOnly ? visibleWords().length : state.matches.filter(inGroup).length;
+    bare = n.toLocaleString() + " match" + (n === 1 ? "" : "es");
     count = n.toLocaleString() + (listOnly ? " everyday" : "") + " match" + (n === 1 ? "" : "es") + " for “" + state.query + "”";
   } else {
     const n = listOnly ? visibleWords().length : state.group === null ? WORDS.length : (COUNTS[state.group] || 0);
+    bare = n.toLocaleString() + (n === 1 ? " word" : " words");
     count = n.toLocaleString() + (listOnly ? " everyday" : "") + (n === 1 ? " word" : " words");
   }
   const tail = state.everyday && !listOnly ? ", everyday ones highlighted" : "";
+  // Phones: the count sits at the end of the language buttons' row, so only the number fits
+  if (window.matchMedia("(max-width: 640px)").matches) { fitStatus(bare, bare); $("status").title = count + where + tail; return; }
   // The full line, and a shorter one without the languages (the language buttons beside it already show them)
   fitStatus(count + where + tail, count + (tail ? " · everyday highlighted" : ""));
 }
@@ -118,7 +122,7 @@ function fitStatus(full, short) {
   };
   if (!tryText(statusTexts[0], 11) && st.clientWidth) tryText(statusTexts[1], 10);
 }
-window.addEventListener("resize", () => fitStatus());
+window.addEventListener("resize", () => updateStatus());
 
 // ---------- Group buttons ----------
 
@@ -244,6 +248,8 @@ const MAP_STILL = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Space around the field, and how much taller than the canvas's own shape it is laid out (below 1 = taller and narrower)
 const MAP_PAD = { left: 30, right: 80, top: 22, bottom: 44 }, MAP_ASPECT = 0.9;
+// On phones the sides match the site's narrower 16px edge
+const mapPad = () => window.innerWidth <= 640 ? { ...MAP_PAD, left: 16, right: 16 } : MAP_PAD;
 
 // The ways to arrange the dots: each is a list of bands, and each band a list of blocks
 const MAP_LEVELS = ["Beginner", "Intermediate", "Advanced", "No learner level"];
@@ -324,7 +330,7 @@ function buildLayout(animate) {
   canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const secs = mapSections(mapArrange), n = WORDS.length, P0 = MAP_PAD;
+  const secs = mapSections(mapArrange), n = WORDS.length, P0 = mapPad();
   const availW = W - P0.left - P0.right, availH = H - P0.top - P0.bottom;
   // every band has R rows; each block fills down a column, then moves right
   const measure = (R, hdr) => {
@@ -349,7 +355,9 @@ function buildLayout(animate) {
   let y = 0, width = 0;
   secs.forEach(s => {
     const total = s.blocks.reduce((a, b) => a + b.idx.length, 0);
-    heads.push({ kind: "band", x: 0, y, title: s.title.toUpperCase(), count: total.toLocaleString() });
+    heads.push({ kind: "band", x: 0, y, title: s.title.toUpperCase(), count: total.toLocaleString(),
+      // a band with no block labels under its title (all three) puts its title down in their row, closer to its dots
+      labelY: s.blocks.some(b => b.label) ? null : y + hdr * 0.62 });
     const top = y + hdr;
     let c = 0;
     s.blocks.forEach((b, bi) => {
@@ -480,14 +488,14 @@ function draw() {
     const x = mapCam.x + h.x * s, y = mapCam.y + h.y * s;
     if (h.kind === "band") {
       // small caps: the title in tracked capitals, then its count in grey
-      const bx = Math.max(x, 8);
+      const bx = Math.max(x, 8), ty = h.labelY === null ? y + 16 : mapCam.y + h.labelY * s + 2;
       ctx.letterSpacing = "0.08em";
       ctx.font = '600 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#000";
-      ctx.fillText(h.title, bx, y + 16);
+      ctx.fillText(h.title, bx, ty);
       const tw = ctx.measureText(h.title).width;
       ctx.letterSpacing = "0px";
       ctx.font = '400 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#4a453d";
-      ctx.fillText("  ·  " + h.count, bx + tw, y + 16);
+      ctx.fillText("  ·  " + h.count, bx + tw, ty);
       lastEnd = -1e9;
       return;
     }
@@ -604,7 +612,7 @@ function mapSetHover(i) {
 // canvas's edges (with a small margin). A side that fits on screen stays where it sits when the whole field is shown.
 function mapClamp(c) {
   if (!layout || !mapFit) return c;
-  const s = Math.max(mapFit.s, Math.min(90, c.s)), P0 = MAP_PAD;
+  const s = Math.max(mapFit.s, Math.min(90, c.s)), P0 = mapPad();
   const cw = layout.width * s, ch = layout.height * s;
   const x = cw <= layout.W - P0.left - P0.right + 0.5 ? mapFit.x : Math.min(P0.left, Math.max(layout.W - P0.right - cw, c.x));
   const y = ch <= layout.H - P0.top - P0.bottom + 0.5 ? mapFit.y : Math.min(P0.top, Math.max(layout.H - P0.bottom - ch, c.y));
@@ -748,7 +756,7 @@ function card(i) {
   b.dataset.index = i;
   b.setAttribute("aria-pressed", String(state.selected === i));
   // The meaning leads (for English readers), then the Korean word with its Hanja, then the romanization.
-  // A bar at the bottom has a fixed slot for Chinese, Japanese, and Vietnamese, coloured when that language shares the word.
+  // A column of dots on the right has a fixed slot for Chinese, Japanese, and Vietnamese, filled when that language shares the word.
   const m = meaningOf(i);
   const en = el("div", "gloss" + (m.source !== "ko" ? " borrowed" : ""), m.short);
   const ko = el("div", "ko", w[HANGUL]);
@@ -771,6 +779,12 @@ $("list-wrap").addEventListener("scroll", () => {
   const el = $("list-wrap");
   if (listShown < listItems.length && el.scrollTop + el.clientHeight > el.scrollHeight - 400) appendListChunk();
 });
+// On phones the list scrolls with the page, so more words load as the page nears its end
+window.addEventListener("scroll", () => {
+  if (state.view !== "list" || listShown >= listItems.length) return;
+  const end = $("list-end").getBoundingClientRect().top;
+  if (end < window.innerHeight + 400) appendListChunk();
+}, { passive: true });
 
 // ---------- Detail panel ----------
 
@@ -1160,6 +1174,33 @@ function deselect() {
   if (state.view === "map") redrawMap();
 }
 
+// ---------- Phones: the word sheet ----------
+// On phones a selected word's panel slides up from the bottom (style.css). A tap on the dimmed page behind it, Escape, or
+// pulling the sheet down from its top closes it.
+const sheetIsOpen = () => window.matchMedia("(max-width: 640px)").matches && $("detail").classList.contains("has-word");
+$("sheet-backdrop").addEventListener("click", () => deselect());
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sheetIsOpen() && !onSubpage) deselect(); });
+(() => {
+  const sheet = $("detail");
+  let startY = null, dy = 0;
+  sheet.addEventListener("touchstart", e => {
+    if (!sheetIsOpen() || sheet.scrollTop > 0) { startY = null; return; }
+    startY = e.touches[0].clientY; dy = 0;
+  }, { passive: true });
+  sheet.addEventListener("touchmove", e => {
+    if (startY === null) return;
+    dy = Math.max(0, e.touches[0].clientY - startY);
+    if (dy > 0) { sheet.style.transition = "none"; sheet.style.transform = "translateY(" + dy + "px)"; }
+  }, { passive: true });
+  sheet.addEventListener("touchend", () => {
+    if (startY === null) return;
+    startY = null;
+    sheet.style.transition = "transform 0.2s ease";
+    if (dy > 90) { sheet.style.transform = "translateY(100%)"; setTimeout(() => { sheet.style.transform = ""; sheet.style.transition = ""; deselect(); }, 200); }
+    else { sheet.style.transform = ""; setTimeout(() => { sheet.style.transition = ""; }, 200); }
+  });
+})();
+
 // Language names are written in their language's ink colour (Chinese, Mandarin, and Cantonese all in the Chinese colour)
 const INK = { Chinese: "z", Mandarin: "z", Cantonese: "z", Japanese: "j", Vietnamese: "v" };
 function inked(tag, cls, name) { const e = el(tag, cls, name); if (INK[name]) e.classList.add("ink-" + INK[name]); return e; }
@@ -1414,6 +1455,13 @@ function revealInList(i) {
   const c = document.querySelector('.card[data-index="' + i + '"]');
   if (!c) return;
   const wrap = $("list-wrap");
+  if (wrap.scrollHeight <= wrap.clientHeight + 1) {   // phones: the page scrolls, not the list
+    // just under the pinned top bar, so the word sheet that opens over the bottom doesn't hide it
+    const bar = document.querySelector(".topbar").getBoundingClientRect().height;
+    window.scrollTo({ top: Math.max(0, c.getBoundingClientRect().top + window.scrollY - bar - 12) });
+    c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash");
+    return;
+  }
   const top = c.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop;
   const target = Math.max(0, top - wrap.clientHeight / 2 + c.offsetHeight / 2);
   // Glide for short distances; jump straight there for long ones (a long glide would load the whole list on the way)
