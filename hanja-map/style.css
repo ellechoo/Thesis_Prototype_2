@@ -830,7 +830,7 @@ details.voices summary { cursor: pointer; }
   .topbar .brand { margin-right: 4px; }
 }
 
-@media (min-width: 901px) and (max-width: 1000px) {
+@media (min-width: 641px) and (max-width: 1000px) {
   /* Narrowest beside the side panel: two rows, the title with Map/List, then search with Random */
   .topbar { flex-wrap: wrap; }
   .topbar .brand { order: 1; }
@@ -875,13 +875,23 @@ details.voices summary { cursor: pointer; }
   .filter-divider { display: none; }
 }
 
-@media (max-width: 900px) {
+/* Phones: the side panel goes below the words (and a selected word opens in a sheet, further down) */
+@media (max-width: 640px) {
   html, body { height: auto; }
   .layout { flex-direction: column; }
   .main-col { flex: none; }
   #map-wrap { flex: none; height: 70vh; }
   #list-wrap { flex: none; max-height: 75vh; }
   #detail { width: auto; border-left: 0; border-top: 1px solid #000; }
+}
+/* Tablets and small windows: the side panel stays beside the words, a little narrower */
+@media (min-width: 641px) and (max-width: 900px) {
+  #detail { width: 300px; }
+  /* a smaller Mandarin | Cantonese switch, so it clears the CHINESE label in the narrower panel */
+  #detail .variant-switch { top: 12px; right: 12px; }
+  #detail .variant-switch button { padding: 4px 8px; font-size: 11.5px; }
+}
+@media (max-width: 900px) {
   #word-page { overflow: visible; }
   #word-content { padding: 20px 16px 48px; }
   .sound-row { grid-template-columns: repeat(2, 1fr); }
