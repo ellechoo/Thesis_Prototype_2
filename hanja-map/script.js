@@ -217,10 +217,8 @@ function refresh() {
   else renderList();
 }
 
-// ---------- 3D map (map3d.js), with the flat map below as a fallback when WebGL isn't available ----------
+// ---------- Map (flat 2D canvas) ----------
 
-let map3d = null;
-let flyNext = false;   // after the next selection, move the 3D camera to the word
 
 // How a word looks in the map: 0 faded (not in the current filter), 1 normal, 2 highlighted
 function lookOf(i) {
@@ -240,47 +238,13 @@ function showTooltip(i, x, y) {
   tooltip.style.top = Math.min(y + 16, wrap.clientHeight - 28) + "px";
 }
 
-function redrawMap() {
-  if (map3d) {
-    map3d.update({ group: state.group, selected: state.selected, flyToSelected: flyNext });
-    flyNext = false;
-  } else draw();
-}
+function redrawMap() { draw(); }
 
 function relayoutMap() {
-  if (map3d) { map3d.render(); redrawMap(); }
-  else { buildLayout(); draw(); }
+  buildLayout(); draw();
 }
 
-function selectAndFly(i) { flyNext = true; select(i); }
-
-function startMap3D() {
-  map3d = createMap3D($("map-wrap"), {
-    words: WORDS,
-    catOf: i => WORDS[i][CAT],
-    groups: GROUP_ORDER,
-    groupName,
-    countOf: cat => COUNTS[cat] || 0,
-    langName: c => LANG_NAME[c],
-    labelOf: i => [WORDS[i][HANGUL] + " " + WORDS[i][HANJA], meaningOf(i).short],
-    hangulOf: i => WORDS[i][HANGUL],
-    hanjaOf: i => WORDS[i][HANJA],
-    levelOf: i => WORDS[i][LEVEL],
-    look: lookOf,
-    pickable: i => lookOf(i) > 0,
-    currentGroup: () => state.group,
-    onHover: showTooltip,
-    onSelect: i => select(i),
-    onOpen: i => openWord(i),
-    onGroup: cat => setGroup(cat)
-  });
-  if (!map3d) { $("map-note").hidden = false; return; }
-  $("map").hidden = true;
-  $("map-wrap").classList.add("is-3d");
-  $("zoom-in").addEventListener("click", () => map3d.zoom(0.6));
-  $("zoom-out").addEventListener("click", () => map3d.zoom(1.6));
-  $("reset-view").addEventListener("click", () => map3d.home());
-}
+function selectAndFly(i) { select(i); }
 
 // ---------- Map layout ----------
 
@@ -1223,10 +1187,8 @@ function resetGallery() {
   state.everyday = false;
   $("everyday").setAttribute("aria-checked", "false");
   state.selected = -1;
-  flyNext = false;
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
   $("detail").classList.remove("has-word");
-  if (map3d) map3d.home();
   setView("list");   // also redraws the list and the intro
   $("list-wrap").scrollTop = 0;
   $("detail").scrollTop = 0;
@@ -1243,7 +1205,7 @@ document.querySelectorAll("[data-jump]").forEach(a => a.addEventListener("click"
 let resizeTimer = null;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (state.view === "map" && !map3d) { buildLayout(); draw(); } }, 150);
+  resizeTimer = setTimeout(() => { if (state.view === "map") { buildLayout(); draw(); } }, 150);
 });
 
 // ---------- Sound history ----------
@@ -1568,7 +1530,6 @@ window.addEventListener("popstate", route);
 
 renderGroupButtons();
 renderIntro();
-startMap3D();
 refresh();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
 
