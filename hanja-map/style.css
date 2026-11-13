@@ -12,9 +12,9 @@
 
 /* Warm paper palette: a warm white page, cream boxes, and a deeper hanji tone for the word panel */
 :root {
-  --paper: #faf8f3;   /* the page */
-  --card: #fffdf9;    /* boxes, buttons, fields */
-  --panel: #efe9dd;   /* the side panel when a word is selected */
+  --paper: #ffffff;   /* the page */
+  --card: #ffffff;    /* boxes, buttons, fields */
+  --panel: #ffffff;   /* the side panel when a word is selected */
   --hover: #f3eee4;   /* hover and pressed shading */
   --soft: var(--soft)8dc;    /* faint dividers */
   --line: var(--line)5c6;    /* light outlines */
