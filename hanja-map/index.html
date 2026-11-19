@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261118x">
+  <link rel="stylesheet" href="style.css?v=20261119c">
 </head>
 <body>
 
@@ -46,7 +46,14 @@
         <span class="filter-divider" aria-hidden="true" hidden></span>
         <button type="button" id="everyday" hidden class="switch" role="switch" aria-checked="false"
                 title="Show only (in the list) or highlight (in the map) the 2,183 words Korean learners meet first"><span class="switch-track" aria-hidden="true"></span>Everyday words</button>
+        <span class="row-break" aria-hidden="true"></span>
         <p id="status" aria-live="polite"></p>
+        <!-- List view only: the order of the cards -->
+        <div id="sort" class="sort-menu" hidden>
+          <span class="sort-label" id="sort-label">Sort by</span>
+          <button type="button" id="sort-button" class="sort-btn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="sort-label sort-button"></button>
+          <div id="sort-pop" class="sort-pop" role="listbox" aria-labelledby="sort-label" hidden></div>
+        </div>
       </div>
       <div id="map-wrap">
         <!-- Arrange by (Languages / Number of characters / Learner level): hidden for now; script.js still supports it if it comes back
@@ -252,11 +259,11 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261118x"></script>
-  <script src="characters.js?v=20261118x"></script>
-  <script src="romanize.js?v=20261118x"></script>
-  <script src="recordings.js?v=20261118x"></script>
-  <script src="speech.js?v=20261118x"></script>
-  <script src="script.js?v=20261118x"></script>
+  <script src="words.js?v=20261119c"></script>
+  <script src="characters.js?v=20261119c"></script>
+  <script src="romanize.js?v=20261119c"></script>
+  <script src="recordings.js?v=20261119c"></script>
+  <script src="speech.js?v=20261119c"></script>
+  <script src="script.js?v=20261119c"></script>
 </body>
 </html>

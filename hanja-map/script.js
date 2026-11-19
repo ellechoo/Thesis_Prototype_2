@@ -64,6 +64,7 @@ const state = {
   matches: null,     // array of word indexes matching the search, best first; null = no search
   matchSet: null,
   everyday: false,
+  sort: "en",         // the list's order (see "Sorting the list")
   selected: -1
 };
 
@@ -71,9 +72,10 @@ let layout = null;   // map geometry for the current size and group
 
 // ---------- Filtering ----------
 
-// The words the list shows, in display order
+// The words the list shows, in display order: a search keeps its best matches first; otherwise the list follows the
+// chosen sort (see "Sorting the list" below)
 function visibleWords() {
-  const base = state.matches || WORDS.map((_, i) => i);
+  const base = state.matches || sortedWords();
   return base.filter(i =>
     (state.group === null || WORDS[i][CAT] === state.group) &&
     (!state.everyday || isEveryday(WORDS[i])));
@@ -207,6 +209,7 @@ function setGroup(cat) {
 
 function setView(view) {
   state.view = view;
+  $("sort").hidden = view !== "list";
   if (!$("detail").classList.contains("has-word")) renderIntro();
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   $("map-wrap").hidden = view !== "map";
@@ -818,11 +821,18 @@ $("reset-view").addEventListener("click", mapResetView);
 // ---------- List view ----------
 
 const LIST_CHUNK = 240;
-let listItems = [], listShown = 0;
+let listItems = [], listShown = 0, listHeads = null, listLastHead;
 
 function renderList() {
   listItems = visibleWords();
   listShown = 0;
+  // headings between letters, with how many of the shown words each holds (not while searching, or in the default order)
+  listHeads = null; listLastHead = undefined;
+  const sk = SORTS[state.sort];
+  if (sk && sk.head && !state.matches) {
+    listHeads = new Map();
+    listItems.forEach(i => { const h = sortHead(i); listHeads.set(h, (listHeads.get(h) || 0) + 1); });
+  }
   $("list").innerHTML = "";
   appendListChunk();
   $("list-wrap").scrollTop = 0;
@@ -831,7 +841,13 @@ function renderList() {
 function appendListChunk() {
   const box = $("list");
   const frag = document.createDocumentFragment();
-  listItems.slice(listShown, listShown + LIST_CHUNK).forEach(i => frag.appendChild(card(i)));
+  listItems.slice(listShown, listShown + LIST_CHUNK).forEach(i => {
+    if (listHeads) {
+      const h = sortHead(i);
+      if (h !== listLastHead) { frag.appendChild(sortDivider(h)); listLastHead = h; }
+    }
+    frag.appendChild(card(i));
+  });
   box.appendChild(frag);
   listShown = Math.min(listItems.length, listShown + LIST_CHUNK);
   $("list-end").textContent = !listItems.length
@@ -855,7 +871,9 @@ function card(i) {
   const ko = el("div", "ko", w[HANGUL]);
   ko.lang = "ko";
   ko.appendChild(el("span", "hj", w[HANJA]));
-  const roman = el("div", "roman", KO_ROMAN[i]);
+  // sorted by another language, the card shows that language's reading in place of the Korean romanization
+  const sk = SORTS[state.sort], reading = sk && sk.reading && !state.matches ? sk.reading(i) : "";
+  const roman = reading ? el("div", "roman sort-reading ink-" + sk.ink, reading) : el("div", "roman", KO_ROMAN[i]);
   const bar = el("div", "share-bar");
   const names = Array.from(w[CAT]).map(c => LANG_NAME[c]);
   bar.title = "Also a word in " + joinList(names);
@@ -2202,3 +2220,115 @@ $("panel-toggle").addEventListener("keydown", e => {   // keyboard: Enter or Spa
 });
 $("rail").addEventListener("click", () => setPanelCollapsed(false));
 try { if (localStorage.getItem(PANEL_KEY) === "collapsed") setPanelCollapsed(true, false, false); } catch (e) {}
+
+
+// ---------- Sorting the list ----------
+// The list follows English (A–Z by meaning, the default), Korean (가나다), Chinese (pinyin), Japanese (kana, in dictionary
+// order), or Vietnamese (its own alphabet: a ă â b c d đ e ê …). A heading starts each letter. Sorted by another language, each card shows that language's reading, and the
+// words that language doesn't share come last, under "Not a word in …", in 가나다 order. A search keeps its own order
+// (best matches first). The choice is remembered.
+const SORT_KEY = "hanja-roots-sort";
+const KO_INITIALS = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+const KANA_ROWS = ["あいうえおぁぃぅぇぉゔ", "かきくけこゕゖ", "さしすせそ", "たちつてとっ", "なにぬねの", "はひふへほ", "まみむめも", "やゆよゃゅょ", "らりるれろ", "わゐゑをんゎ"];
+const plainKana = t => toHiragana(t).normalize("NFD").replace(/[\u3099\u309A]/g, "").normalize("NFC");
+const firstHangul = t => (t.match(/[\uAC00-\uD7A3]/) || [""])[0];
+const SORTS = {
+  en: { label: "English", hint: "A–Z", locale: "en", notLabel: "Other meanings",
+        // meanings that don't start with a Latin letter (a few rare ones) come last
+        has: i => /^[^A-Za-z]*[A-Za-z]/.test(meaningOf(i).short.replace(/^[≈\s(\-'"“]+/, "").charAt(0) ? meaningOf(i).short.replace(/^[≈\s(\-'"“]+/, "").charAt(0) : ""),
+        key: i => meaningOf(i).short.replace(/^[^A-Za-z0-9]+/, ""),
+        head: i => { const c = meaningOf(i).short.replace(/^[^A-Za-z0-9]+/, "").charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; } },
+  ko: { label: "Korean", hint: "가나다", locale: "ko",
+        key: i => WORDS[i][HANGUL].replace(/^[^\uAC00-\uD7A3]+/, ""),
+        head: i => { const c = firstHangul(WORDS[i][HANGUL]); return c ? KO_INITIALS[Math.floor((c.charCodeAt(0) - 0xAC00) / 588)] : "#"; } },
+  zh: { label: "Chinese", hint: "pinyin", locale: "en", lang: "z", ink: "z", name: "Chinese",
+        has: i => !!WORDS[i][ZH_PINYIN],
+        key: i => WORDS[i][ZH_PINYIN].toLowerCase().replace(/u:/g, "v").replace(/\d/g, "") + "\u0000" + WORDS[i][ZH_PINYIN].replace(/[^1-5]/g, ""),
+        head: i => WORDS[i][ZH_PINYIN].charAt(0).toUpperCase(),
+        reading: i => pinyinMarks(WORDS[i][ZH_PINYIN]) },
+  ja: { label: "Japanese", hint: "あいうえお", locale: "ja", lang: "j", ink: "j", name: "Japanese",
+        has: i => !!WORDS[i][JP_READING],
+        key: i => toHiragana(WORDS[i][JP_READING]),
+        head: i => { const c = plainKana(WORDS[i][JP_READING]).charAt(0), r = KANA_ROWS.find(x => x.includes(c)); return r ? r[0] : c; },
+        reading: i => WORDS[i][JP_READING] + " · " + romajiWithMacrons(JP_ROMAN[i]) },
+  vi: { label: "Vietnamese", hint: "a ă â b…", locale: "vi", lang: "v", ink: "v", name: "Vietnamese",
+        has: i => !!WORDS[i][VI_WORD],
+        key: i => WORDS[i][VI_WORD].toLowerCase(),
+        // the first letter without its tone mark (keeping ă, â, đ, ê, ô, ơ, ư, which are letters of their own)
+        head: i => WORDS[i][VI_WORD].normalize("NFD").replace(/[\u0300\u0301\u0303\u0309\u0323]/g, "").normalize("NFC").charAt(0).toUpperCase(),
+        reading: i => WORDS[i][VI_WORD] }
+};
+const sortCache = {};
+function sortedWords() {
+  const name = state.sort;
+  if (sortCache[name]) return sortCache[name];
+  const all = WORDS.map((_, i) => i), o = SORTS[name];
+  if (!o || !o.key) return (sortCache[name] = all);
+  const koColl = new Intl.Collator("ko"), coll = new Intl.Collator(o.locale, { sensitivity: "base", numeric: true });
+  const has = o.has ? all.filter(o.has) : all, not = o.has ? all.filter(i => !o.has(i)) : [];
+  const keys = new Map(has.map(i => [i, o.key(i)]));
+  has.sort((a, b) => coll.compare(keys.get(a), keys.get(b)) || koColl.compare(WORDS[a][HANGUL], WORDS[b][HANGUL]));
+  not.sort((a, b) => koColl.compare(WORDS[a][HANGUL], WORDS[b][HANGUL]));
+  return (sortCache[name] = has.concat(not));
+}
+const sortHead = i => { const o = SORTS[state.sort]; return o.has && !o.has(i) ? "\u0000not" : o.head(i); };
+function sortDivider(h) {
+  const o = SORTS[state.sort], n = listHeads.get(h) || 0;
+  const d = el("div", "list-divider" + (h === "\u0000not" ? " not" : ""));
+  d.setAttribute("role", "heading");
+  d.setAttribute("aria-level", "3");
+  if (h === "\u0000not") d.append(document.createTextNode(o.notLabel || "Not a word in " + o.name), el("small", "", n.toLocaleString() + (n === 1 ? " word" : " words") + ", in 가나다 order"));
+  else {
+    const t = el("span", "", h);
+    if (state.sort === "ko") t.lang = "ko"; else if (state.sort === "ja") t.lang = "ja";
+    d.append(t, el("small", "", n.toLocaleString() + (n === 1 ? " word" : " words")));
+  }
+  return d;
+}
+function setSort(name) {
+  if (!SORTS[name]) name = "en";
+  state.sort = name;
+  try { localStorage.setItem(SORT_KEY, name); } catch (e) {}
+  renderSortMenu();
+  if (state.view === "list") renderList();
+}
+function renderSortMenu() {
+  const o = SORTS[state.sort];
+  $("sort-button").textContent = o.label + " ";
+  $("sort-button").insertAdjacentHTML("beforeend", '<svg width="10" height="7" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>');
+  const pop = $("sort-pop");
+  pop.innerHTML = "";
+  ["en", "ko", "zh", "ja", "vi"].forEach(k => {
+    const b = el("button", "sort-opt" + (k === state.sort ? " on" : ""));
+    b.type = "button";
+    b.setAttribute("role", "option");
+    b.setAttribute("aria-selected", String(k === state.sort));
+    const hint = el("small", "", SORTS[k].hint);
+    if (k === "ko") hint.lang = "ko"; else if (k === "ja") hint.lang = "ja"; else if (k === "vi") hint.lang = "vi";
+    b.append(el("span", "", SORTS[k].label), hint);
+    b.addEventListener("click", () => { closeSortMenu(); setSort(k); $("sort-button").focus(); });
+    pop.appendChild(b);
+  });
+}
+function openSortMenu() {
+  $("sort-pop").hidden = false;
+  $("sort-button").setAttribute("aria-expanded", "true");
+  const on = document.querySelector(".sort-opt.on");
+  if (on) on.focus();
+}
+function closeSortMenu() { $("sort-pop").hidden = true; $("sort-button").setAttribute("aria-expanded", "false"); }
+$("sort-button").addEventListener("click", e => { e.stopPropagation(); $("sort-pop").hidden ? openSortMenu() : closeSortMenu(); });
+document.addEventListener("click", e => { if (!e.target.closest("#sort")) closeSortMenu(); });
+$("sort").addEventListener("keydown", e => {
+  if ($("sort-pop").hidden) return;
+  const opts = Array.from(document.querySelectorAll(".sort-opt")), k = opts.indexOf(document.activeElement);
+  if (e.key === "Escape") { e.preventDefault(); closeSortMenu(); $("sort-button").focus(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); opts[(k + 1) % opts.length].focus(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); opts[(k - 1 + opts.length) % opts.length].focus(); }
+});
+try { state.sort = SORTS[localStorage.getItem(SORT_KEY)] ? localStorage.getItem(SORT_KEY) : "en"; } catch (e) { state.sort = "en"; }
+renderSortMenu();
+$("sort").hidden = state.view !== "list";
+if (state.view === "list") renderList();
+// sort the words ahead of time, once the page is idle, so the first visit to the list doesn't wait
+(window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => sortedWords());

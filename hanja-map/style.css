@@ -1268,3 +1268,43 @@ details.voices summary { cursor: pointer; }
 /* the panel's background folds it when clicked (larger screens) */
 @media (min-width: 641px) { body:not(.panel-collapsed) #detail { cursor: e-resize; }
   #detail button, #detail a, #detail .lang-card, #detail .dual-row, #detail [role='button'] { cursor: pointer; } }
+
+/* ---------- Sorting the list ---------- */
+.row-break { display: none; }
+.sort-menu { position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; margin-left: 8px; font-size: 13px; }
+.sort-menu[hidden] { display: none; }
+.sort-label { color: #4a453d; white-space: nowrap; }
+.sort-btn { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid #000; border-radius: 8px;
+  background: var(--card); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.sort-btn:hover { background: var(--hover); }
+.sort-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; width: 230px; padding: 6px;
+  border: 1px solid #000; border-radius: 10px; background: var(--card); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); }
+.sort-pop[hidden] { display: none; }
+.sort-pop hr { margin: 4px 6px; border: 0; border-top: 1px solid #e2d9c8; }
+.sort-opt { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 10px;
+  border: 0; border-radius: 6px; background: none; font-size: 13.5px; text-align: left; cursor: pointer; }
+.sort-opt small { font-size: 11.5px; color: #888; }
+.sort-opt:hover, .sort-opt:focus-visible { background: var(--hover); outline: none; }
+.sort-opt.on { background: #000; color: #fff; }
+.sort-opt.on small { color: #ccc; }
+/* a heading at the start of each letter */
+.list-divider { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; margin: 16px 0 2px; padding-bottom: 4px;
+  border-bottom: 1px solid #000; font-size: 18px; font-weight: 600; }
+.list-divider:first-child { margin-top: 0; }
+.list-divider small { font-size: 12px; font-weight: 400; color: #5d574d; }
+.list-divider.not { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d574d; border-bottom-color: #cfc6b4; }
+.list-divider.not small { letter-spacing: 0; text-transform: none; }
+/* the sorting language's reading, in its ink, in place of the Korean romanization */
+.card .roman.sort-reading { font-style: normal; font-weight: 600; font-size: 11px; }
+@media (max-width: 1100px) {
+  .row-break { display: block; flex-basis: 100%; height: 0; }
+  #status { flex: 1 1 0; flex-basis: auto; }
+}
+@media (max-width: 640px) {
+  .row-break { display: none; }
+  .sort-menu { margin: 2px 0 0 auto; font-size: 12px; }
+  .sort-btn { padding: 3px 8px; font-size: 12px; }
+  .list-divider { margin: 18px 0 0; font-size: 16px; }
+  .list-divider:first-child { margin-top: 4px; }
+  .card .roman.sort-reading { display: block; margin-top: 2px; font-size: 12px; }   /* phones hide the romanization, but keep this */
+}
