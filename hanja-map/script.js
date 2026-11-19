@@ -255,11 +255,15 @@ const mapPad = () => window.innerWidth <= 640 ? { ...MAP_PAD, left: 16, right: 1
 const MAP_LEVELS = ["Beginner", "Intermediate", "Advanced", "No learner level"];
 const mapSectionCache = {};
 function mapSections(name) {
-  if (mapSectionCache[name]) return mapSectionCache[name];
+  // With a group open (a block clicked, or its languages chosen), the field holds just that group's words
+  const g = name === "lang" ? state.group : null, key = name + (g ? ":" + g : "");
+  if (mapSectionCache[key]) return mapSectionCache[key];
   const block = (cat, idx, label) => ({ cat, idx, label });
   const byLanguages = keep => GROUP_ORDER.map(g => block(g, (MAP_BY_GROUP[g] || []).filter(keep), groupName(g))).filter(b => b.idx.length);
   let secs;
-  if (name === "length") {
+  if (g) {
+    secs = [{ title: blockName(g), blocks: [block(g, MAP_BY_GROUP[g] || [], "")] }];
+  } else if (name === "length") {
     secs = [2, 3, 4, 5].map(n => ({ title: n === 5 ? "5 or more characters" : n + " characters",
       blocks: byLanguages(i => n === 5 ? WORDS[i][HANJA].length >= 5 : WORDS[i][HANJA].length === n) }));
   } else if (name === "level") {
@@ -271,7 +275,7 @@ function mapSections(name) {
       { title: "Shared with one language", blocks: ["j", "z", "v"].map(g => block(g, MAP_BY_GROUP[g] || [], groupName(g))) }
     ];
   }
-  return (mapSectionCache[name] = secs);
+  return (mapSectionCache[key] = secs);
 }
 
 let mapArrange = "lang";
@@ -351,7 +355,7 @@ function buildLayout(animate) {
   best = choose(hdr);
   const R = best.R;
 
-  const X = new Float32Array(n), Y = new Float32Array(n), P = new Float32Array(n), heads = [];
+  const X = new Float32Array(n).fill(NaN), Y = new Float32Array(n).fill(NaN), P = new Float32Array(n), heads = [];   // words not laid out stay NaN, never drawn
   let y = 0, width = 0;
   secs.forEach(s => {
     const total = s.blocks.reduce((a, b) => a + b.idx.length, 0);
@@ -378,13 +382,15 @@ function buildLayout(animate) {
 
   const grid = new Map();
   for (let i = 0; i < n; i++) {
+    if (X[i] !== X[i]) continue;
     const key = Math.floor(X[i] / 4) + "," + Math.floor(Y[i] / 4);
     let g = grid.get(key); if (!g) grid.set(key, g = []); g.push(i);
   }
 
-  const s = Math.min(availW / width, availH / height);
+  // a small group isn't blown up to fill the screen: its dots stay about the size they'd be in a mid-sized group
+  const s = Math.min(availW / width, availH / height, 26);
   const fit = { s, x: P0.left, y: P0.top };
-  const L = { W, H, name: mapArrange, X, Y, P, heads, grid, width, height };
+  const L = { W, H, name: mapKey(), X, Y, P, heads, grid, width, height };
   if (animate && layout) {
     mapFrom.X.set(mapCur.X); mapFrom.Y.set(mapCur.Y);
     mapAnim = { t0: performance.now(), dur: 1100 };
@@ -399,10 +405,88 @@ function buildLayout(animate) {
   return true;
 }
 
+const mapKey = () => mapArrange + (mapArrange === "lang" && state.group ? ":" + state.group : "");
+// The overview opens as seven blocks, one per group of languages; opening one shows its words as dots
+const mapBlocksMode = () => mapArrange === "lang" && state.group === null;
+
 function relayoutMap() {
-  if (!layout || layout.W !== canvas.clientWidth || layout.H !== canvas.clientHeight || layout.name !== mapArrange) buildLayout(false);
+  const blocks = mapBlocksMode();
+  $("map-blocks").hidden = !blocks;
+  $("map-back").hidden = blocks;
+  canvas.style.display = blocks ? "none" : "";
+  if (blocks) { $("reset-view").hidden = true; mapHover = -1; mapRel = null; renderMapBlocks(); return; }
+  if (!layout || layout.W !== canvas.clientWidth || layout.H !== canvas.clientHeight || layout.name !== mapKey()) buildLayout(false);
   mapSchedule();
 }
+
+// ---------- The blocks: the overview's first view ----------
+// One block per group of languages, in the same three bands as the dots, each block as wide as its number of words.
+// A block too narrow for its label has the label beside it. With a search or Everyday on, each block also says how
+// many of its words that leaves. Clicking a block opens it (the same as choosing its languages above).
+const MAP_BANDS = [["Shared with all three", ["zjv"]], ["Shared with two", ["zj", "jv", "zv"]], ["Shared with one language", ["j", "z", "v"]]];
+// Every word is Korean, so each block names Korean first: "Korean + Chinese + Japanese"
+function blockName(g) { return ["Korean"].concat(Array.from(g).map(c => LANG_NAME[c])).join(" + "); }
+function renderMapBlocks() {
+  const box = $("map-blocks");
+  box.innerHTML = "";
+  const side = window.innerWidth <= 640 ? 16 : 30;
+  const avail = box.clientWidth - side * 2, H = box.clientHeight;
+  // phones: each block is a bar on its own line, as long as its number of words
+  const phone = window.innerWidth <= 640;
+  const GAP = 6, MINW = 12, INSIDE = phone ? 220 : 104, LABEL = phone ? 0 : 92;
+  const size = g => (MAP_BY_GROUP[g] || []).length;
+  let k;
+  if (phone) k = avail / Math.max(...GROUP_ORDER.map(size));
+  else {
+    // the widest scale at which every band fits on one line, labels beside the narrow blocks included
+    k = avail / Math.max(...MAP_BANDS.map(([, gs]) => gs.reduce((a, g) => a + size(g), 0)));
+    const fits = () => MAP_BANDS.every(([, gs]) => gs.reduce((a, g) => {
+      const w = Math.max(MINW, size(g) * k); return a + w + GAP + (w < INSIDE ? LABEL : 0); }, -GAP) <= avail);
+    for (let t = 0; t < 80 && !fits(); t++) k *= 0.96;
+  }
+  const bandH = Math.max(64, Math.min(160, (H - 70 - MAP_BANDS.length * 46) / MAP_BANDS.length));
+
+  const part = g => {
+    const a = MAP_BY_GROUP[g] || [];
+    if (state.matchSet) { const n = a.filter(i => state.matchSet.has(i)).length; return [n, n.toLocaleString() + " match" + (n === 1 ? "" : "es")]; }
+    if (state.everyday) { const n = a.filter(i => isEveryday(WORDS[i])).length; return [n, n.toLocaleString() + " everyday"]; }
+    return null;
+  };
+  MAP_BANDS.forEach(([title, gs]) => {
+    const band = el("div", "mb-band");
+    const total = gs.reduce((a, g) => a + size(g), 0);
+    const head = el("div", "mb-title", title);
+    head.appendChild(el("span", "mb-total", " · " + total.toLocaleString()));
+    band.appendChild(head);
+    const row = el("div", "mb-row");
+    if (!phone) row.style.height = bandH + "px";
+    gs.forEach(g => {
+      const n = size(g), w = Math.max(MINW, n * k), p = part(g);
+      const b = el("button", "mb-block mb-" + g);
+      b.type = "button";
+      b.style.width = w + "px";
+      b.setAttribute("aria-label", "Open the " + n.toLocaleString() + " words in " + blockName(g) + (p ? ", " + p[1] : ""));
+      b.title = "Open these " + n.toLocaleString() + " words";
+      if (p && p[0] === 0) b.classList.add("mb-empty");
+      const label = [el("b", "", n.toLocaleString()), el("span", "", blockName(g))];
+      if (p) label.push(el("span", "mb-sub", p[1]));
+      if (w >= INSIDE) b.append(...label);
+      b.addEventListener("click", () => setGroup(g));
+      const line = phone ? el("div", "mb-line") : row;
+      line.appendChild(b);
+      if (w < INSIDE) {
+        const out = el("div", "mb-out");
+        out.append(...label);
+        out.addEventListener("click", () => setGroup(g));
+        line.appendChild(out);
+      }
+      if (phone) row.appendChild(line);
+    });
+    band.appendChild(row);
+    box.appendChild(band);
+  });
+}
+$("map-back").addEventListener("click", () => setGroup(null));
 function redrawMap() { mapSchedule(); }
 
 function setArrangement(name) {
@@ -416,7 +500,7 @@ if ($("arrange")) $("arrange").addEventListener("change", e => setArrangement(e.
 // ---------- Map drawing ----------
 
 const mapEase = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-const mapShowing = () => state.view === "map" && !$("map-wrap").hidden && !document.body.classList.contains("on-subpage");
+const mapShowing = () => state.view === "map" && !$("map-wrap").hidden && !document.body.classList.contains("on-subpage") && !mapBlocksMode();
 
 function mapSchedule() { if (!mapRaf) mapRaf = requestAnimationFrame(mapTick); }
 function mapTick() {
@@ -462,7 +546,10 @@ function mapPill(i, x, y, dark, extra) {
   // kept clear of the canvas's edges by the site's side padding (30px, or 16px on phones), above the dot if there's room
   const edge = window.innerWidth <= 640 ? 16 : 30, H = layout.H;
   const px = Math.max(edge, Math.min(W - pw - edge, x - pw / 2));
-  const py = y - ph - off >= edge ? y - ph - off : Math.min(H - ph - edge, y + off);
+  // above the dot, unless that would cover the heading over the dots (then below it)
+  const h0 = layout.heads[0];   // the first heading's baseline, as draw() places it
+  const head = h0 ? (h0.labelY === null ? mapCam.y + h0.y * mapCam.s + 16 : mapCam.y + h0.labelY * mapCam.s + 2) + 6 : edge;
+  const py = y - ph - off >= Math.max(edge, head) ? y - ph - off : Math.min(H - ph - edge, y + off);
   ctx.globalAlpha = 1;
   ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(x, y, Math.max(4.5, s * 0.55), 0, Math.PI * 2); ctx.stroke();
@@ -514,14 +601,14 @@ function draw() {
   });
 
   const rel = mapHover >= 0 ? mapRel : null;
-  const tiles = s >= 30 && !mapAnim;
+  const tiles = false;   // the dots stay dots at any size (the word tiles are switched off)
   const onScreen = (x, y, m) => x > -m && y > -m && x < W + m && y < H + m;
 
   if (!tiles) {
     // dots, batched by colour: faded ones first, then the rest
     const r = Math.max(0.75, s * 0.36), faint = new Map(), strong = new Map();
     for (let i = 0; i < n; i++) {
-      if (rel && rel.has(i)) continue;
+      if (rel && (rel.has(i) || i === mapHover)) { if (i === mapHover) { const col = mapColor(i); let b = strong.get(col); if (!b) strong.set(col, b = []); b.push(i); } continue; }
       const x = sx(i), y = sy(i);
       if (!onScreen(x, y, 5)) continue;
       const m = !rel && mapStrong(i) ? strong : faint, col = mapColor(i);
@@ -574,7 +661,7 @@ function draw() {
 
   // the selected word stays labelled; the hovered word gets a pill too
   if (!mapAnim) {
-    if (state.selected >= 0 && state.selected !== mapHover) mapPill(state.selected, sx(state.selected), sy(state.selected), true, "");
+    if (state.selected >= 0 && state.selected !== mapHover && layout.X[state.selected] === layout.X[state.selected]) mapPill(state.selected, sx(state.selected), sy(state.selected), true, "");
     if (mapHover >= 0) mapPill(mapHover, sx(mapHover), sy(mapHover), false,
       rel ? "    " + rel.size.toLocaleString() + (rel.size === 1 ? " word shares" : " words share") + " a character" : "");
   }
@@ -603,7 +690,9 @@ function nearestWord(mx, my) {
 function mapSetHover(i) {
   if (i === mapHover) return;
   mapHover = i;
-  mapRel = i >= 0 ? mapRelatives(i) : null;
+  hoverPreview(i);
+  // only the related words in the group on screen
+  mapRel = i >= 0 ? new Set(Array.from(mapRelatives(i)).filter(j => layout.X[j] === layout.X[j])) : null;
   canvas.style.cursor = i >= 0 ? "pointer" : "";
   mapSchedule();
 }
@@ -635,13 +724,17 @@ function mapResetView() {
 
 // Moves the view so the word is on screen, if it isn't
 function mapReveal(i) {
-  if (!layout) return;
+  if (!layout || layout.X[i] !== layout.X[i]) return;
   const x = mapCam.x + layout.X[i] * mapCam.s, y = mapCam.y + layout.Y[i] * mapCam.s;
   if (x > 40 && y > 40 && x < layout.W - 40 && y < layout.H - 40) return;
   mapCamAnim = { from: { ...mapCam }, to: mapClamp({ s: mapCam.s, x: layout.W / 2 - layout.X[i] * mapCam.s, y: layout.H / 2 - layout.Y[i] * mapCam.s }), t0: performance.now(), dur: 600 };
   mapSchedule();
 }
 function selectAndFly(i) {
+  // in the overview, open the word's group first (from the blocks, or from another group)
+  if (state.view === "map" && mapArrange === "lang" && state.group !== WORDS[i][CAT]) {
+    state.group = WORDS[i][CAT]; renderGroupButtons(); refresh();
+  }
   select(i);
   if (state.view === "map") mapReveal(i);
 }
@@ -771,6 +864,8 @@ function card(i) {
   b.append(en, ko, roman, bar);
   b.title = "Double-click to open this word's page";
   b.addEventListener("click", () => select(i));
+  b.addEventListener("mouseenter", () => hoverPreview(i));
+  b.addEventListener("mouseleave", () => hoverPreview(-1));
   b.addEventListener("dblclick", () => openWord(i));
   return b;
 }
@@ -931,25 +1026,70 @@ function renderIntro() {
     box.appendChild(ex);
   }
 
-  const more = el("button", "intro-more", "More about Hanja Roots →");
-  more.type = "button";
-  more.addEventListener("click", () => openAbout());
-  box.appendChild(more);
+  // Why the site starts from Korean
+  const why = el("div", "intro-why");
+  why.appendChild(el("h3", "", "Why start from Korean?"));
+  why.appendChild(el("p", "", "It's the language this project grew out of. Every word here is a Korean word, followed outward to " +
+    "the languages that share it, and explained in English, so you don't need to read Chinese, Japanese, or Vietnamese to explore."));
+  box.appendChild(why);
+
+  // (The ? button for the About page is gone for now; About is in the top bar's title menu.)
   panel.appendChild(box);
 }
 
 function select(i) {
   state.selected = i;
+  clearTimeout(previewTimer); previewShown = -1;
   const w = WORDS[i];
 
   // If the word isn't in the group being viewed, show all groups
   if (state.group !== null && w[CAT] !== state.group) { state.group = null; renderGroupButtons(); refresh(); }
 
+  renderPanel(i, false);
+  renderRail();
+
+  // Keep the list and map in step with the selection
+  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  const c = document.querySelector('.card[data-index="' + i + '"]');
+  if (c) { c.setAttribute("aria-pressed", "true"); }
+  if (state.view === "map") redrawMap();
+}
+
+// Hovering a word (a dot in the overview or a card in the list) shows its details in the side panel, as a preview;
+// clicking selects it. Moving off puts back the selected word (or the intro). Only with a mouse, never on touch screens.
+const CAN_HOVER = window.matchMedia("(hover: hover) and (pointer: fine)");
+let previewTimer = null, previewShown = -1;
+function hoverPreview(i) {
+  if (!CAN_HOVER.matches || panelCollapsed()) return;
+  clearTimeout(previewTimer);
+  if (i >= 0) {
+    previewTimer = setTimeout(() => {
+      if (i === state.selected) { endPreview(); return; }
+      if (i === previewShown) return;
+      previewShown = i;
+      renderPanel(i, true);
+    }, 140);   // a short pause, so sweeping the mouse across many words doesn't flicker the panel
+  } else {
+    previewTimer = setTimeout(() => { if (!$("detail").matches(":hover")) endPreview(); }, 260);
+  }
+}
+function endPreview() {
+  if (previewShown < 0) return;
+  previewShown = -1;
+  $("detail").classList.remove("previewing");
+  if (state.selected >= 0) renderPanel(state.selected, false); else renderIntro();
+}
+$("detail").addEventListener("mouseleave", () => { if (previewShown >= 0) hoverPreview(-1); });
+
+// The side panel's contents for word i: its meaning, a card per language, and the link to its own page
+function renderPanel(i, preview) {
+  const w = WORDS[i];
   const panel = $("detail");
   panel.innerHTML = "";
   panel.scrollTop = 0;
 
   panel.classList.add("has-word");
+  panel.classList.toggle("previewing", !!preview);
   document.body.classList.remove("intro-showing");
 
   // The English meaning, as the panel's heading
@@ -975,12 +1115,6 @@ function select(i) {
   open.append(document.createTextNode(" →"));
   open.addEventListener("click", () => openWord(i));
   head.appendChild(open);
-
-  // Keep the list and map in step with the selection
-  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
-  const c = document.querySelector('.card[data-index="' + i + '"]');
-  if (c) { c.setAttribute("aria-pressed", "true"); }
-  if (state.view === "map") redrawMap();
 }
 
 // One card per language, all built the same way: used by the side panel and the word page. Each whole card is a play
@@ -993,13 +1127,15 @@ function langCards(i) {
     variants: [{ lang: "ko", word: w[HANGUL], alt: w[HANJA], reading: KO_ROMAN[i], text: w[HANGUL], forms: [w[HANGUL]] }]
   }));
   if (w[ZH_MEANING]) {
+    // Mandarin (mainland China) writes simplified characters; Cantonese (Hong Kong, Macau) keeps traditional ones
     const simp = w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== zhForm(w) ? w[ZH_SIMPLIFIED] : "";
-    cards.push(soundCard({
-      label: "Chinese", definition: w[ZH_MEANING], remember: "chinese",
+    cards.push(dualCard({
+      label: "Chinese", definition: w[ZH_MEANING],
       variants: [
-        { lang: "zh", name: "Mandarin", word: zhForm(w), alt: simp, reading: pinyinMarks(w[ZH_PINYIN]),
+        { lang: "zh", name: "Mandarin", word: simp || zhForm(w), wordLang: simp ? "zh-Hans" : "zh-Hant",
+          alt: simp ? zhForm(w) : "", altLang: "zh-Hant", altTitle: "Traditional form (Taiwan, Hong Kong)", reading: pinyinMarks(w[ZH_PINYIN]),
           text: w[ZH_SIMPLIFIED] || zhForm(w), forms: [w[ZH_SIMPLIFIED], zhForm(w), pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] },
-        { lang: "yue", name: "Cantonese", word: zhForm(w), alt: simp, reading: w[YUE] || "",
+        { lang: "yue", name: "Cantonese", word: zhForm(w), reading: w[YUE] || "",
           text: zhForm(w), forms: w[YUE] ? [zhForm(w), w[YUE].replace(/ /g, "")] : [], unavailable: !w[YUE] && "No Cantonese reading found for this word" }
       ]
     }));
@@ -1090,8 +1226,13 @@ function soundCard(o) {
   function show() {
     const v = o.variants[current];
     wordEl.textContent = v.word;
-    wordEl.lang = FONT_LANG[v.lang] || "";
-    if (v.alt) { const a = el("span", "lang-alt", " " + v.alt); a.lang = v.lang === "zh" || v.lang === "yue" ? "zh-Hans" : wordEl.lang; wordEl.appendChild(a); }
+    wordEl.lang = v.wordLang || FONT_LANG[v.lang] || "";
+    if (v.alt) {
+      const a = el("span", "lang-alt", " " + v.alt);
+      a.lang = v.altLang || wordEl.lang;
+      if (v.altTitle) a.title = v.altTitle;
+      wordEl.appendChild(a);
+    }
     readingEl.textContent = v.reading;
     readingEl.hidden = !v.reading;
     switchButtons.forEach((b, k) => b.setAttribute("aria-checked", String(k === current)));
@@ -1126,6 +1267,63 @@ function soundCard(o) {
   card.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); play(); } });
   return card;
 }
+// A card for a language with two spoken forms (Chinese: Mandarin and Cantonese), shown together rather than behind a
+// switch: one row each, with its own word, reading, and speaker. Mandarin writes the simplified form, Cantonese the
+// traditional one. Each row is its own play button; the meaning sits underneath, shared.
+function dualCard(o) {
+  const card = el("div", "lang-card dual");
+  const labelRow = el("div", "lang-label-row");
+  labelRow.appendChild(inked("span", "lang-label", o.label));
+  card.appendChild(labelRow);
+  o.variants.forEach(v => {
+    const row = el("div", "dual-row");
+    const text = el("div", "dual-text");
+    text.appendChild(inked("span", "dual-name", v.name));
+    const wordEl = el("div", "lang-word", v.word);
+    wordEl.lang = v.wordLang || FONT_LANG[v.lang] || "";
+    text.appendChild(wordEl);
+    const status = el("div", "lang-status");
+    row.appendChild(text);
+    if (v.unavailable) {
+      row.classList.add("unavailable");
+      text.appendChild(el("div", "lang-status", v.unavailable));
+      card.appendChild(row);
+      return;
+    }
+    if (v.reading) text.appendChild(el("div", "lang-reading", v.reading));
+    text.appendChild(status);
+    row.insertAdjacentHTML("beforeend", SPEAKER_SVG);
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.setAttribute("aria-label", o.label + " (" + v.name + "): " + v.word + ". Play pronunciation");
+    let rec = null;
+    findRecording(v.lang, v.forms.filter(Boolean)).then(r => { rec = r; if (r && !status.classList.contains("error")) status.textContent = "Native speaker recording by " + r.speaker; }).catch(() => {});
+    const play = () => {
+      const done = () => setPlaying(row, false);
+      status.classList.remove("error");
+      const speakIt = () => {
+        if (!speechSupported || !voiceFor(v.lang)) {
+          status.textContent = "No " + SPEECH_LANGS[v.lang].name + " voice on this device yet. See About for how to add one.";
+          status.classList.add("error");
+          done();
+          return;
+        }
+        setPlaying(row, true);
+        speak(v.text, v.lang, null, done);
+      };
+      if (rec) {
+        setPlaying(row, true);
+        playRecording(rec).then(() => { currentAudio.onended = done; currentAudio.onpause = done; }).catch(() => speakIt());
+      } else speakIt();
+    };
+    row.addEventListener("click", play);
+    row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); play(); } });
+    card.appendChild(row);
+  });
+  if (o.definition) card.appendChild(el("div", "lang-def", o.definition));
+  return card;
+}
+
 function missingCard(lang, text) {
   const card = el("div", "lang-card missing");
   card.appendChild(el("div", "lang-def", text));   // "Not a word in Japanese" says it all
@@ -1173,8 +1371,10 @@ function appendLangSections(box, i) {
 
 function deselect() {
   state.selected = -1;
+  clearTimeout(previewTimer); previewShown = -1; $("detail").classList.remove("previewing");
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
   renderIntro();
+  renderRail();
   if (state.view === "map") redrawMap();
 }
 
@@ -1674,10 +1874,24 @@ function langDots(cat, className) {
   return box;
 }
 
-function wordButton(i) {
+// ch (optional): the character this word was listed for; it's set in bold in the Hanja, with its Korean syllable
+function wordButton(i, ch) {
   const b = el("button", "word-chip");
   b.type = "button";
-  b.append(el("span", "chip-ko", WORDS[i][HANGUL] + " " + WORDS[i][HANJA]), el("span", "chip-en", meaningOf(i).short));
+  const ko = el("span", "chip-ko");
+  const hj = Array.from(WORDS[i][HANJA]), hg = Array.from(WORDS[i][HANGUL]);
+  const hits = ch ? hj.map((c, k) => c === ch ? k : -1).filter(k => k >= 0) : [];
+  const mark = (chars, lang) => {
+    const span = el("span");
+    span.lang = lang;
+    chars.forEach((c, k) => span.appendChild(hits.includes(k) ? el("b", "chip-hit", c) : document.createTextNode(c)));
+    return span;
+  };
+  if (hits.length) ko.classList.add("has-hit");
+  if (hits.length && hg.length === hj.length) ko.append(mark(hg, "ko"), document.createTextNode(" "), mark(hj, "ko"));
+  else if (hits.length) ko.append(document.createTextNode(WORDS[i][HANGUL] + " "), mark(hj, "ko"));
+  else ko.textContent = WORDS[i][HANGUL] + " " + WORDS[i][HANJA];
+  b.append(ko, el("span", "chip-en", meaningOf(i).short));
   const dots = el("span", "share-bar");   // the list's column of dots: Chinese, Japanese, Vietnamese
   ["z", "j", "v"].forEach(c => dots.appendChild(el("i", WORDS[i][CAT].includes(c) ? "on lang-" + c : "")));
   dots.title = "Also a word in " + joinList(Array.from(WORDS[i][CAT]).map(c => LANG_NAME[c]));
@@ -1803,7 +2017,7 @@ function renderWordPage(i) {
       ((LEVEL_ORDER[WORDS[a][LEVEL]] ?? 3) - (LEVEL_ORDER[WORDS[b][LEVEL]] ?? 3)) || (WORDS[a][HANJA].length - WORDS[b][HANJA].length)).slice(0, 8);
     if (picks.length) {
       const list = el("div", "chip-list");
-      picks.forEach(j => list.appendChild(wordButton(j)));
+      picks.forEach(j => list.appendChild(wordButton(j, c)));
       card.appendChild(list);
     }
     const link = el("p", "char-link");
@@ -1865,3 +2079,126 @@ function joinLastWords(root) {
 joinLastWords(document.body);
 new MutationObserver(list => list.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) joinLastWords(n); })))
   .observe(document.body, { childList: true, subtree: true });
+
+
+// ---------- The side panel, folded away ----------
+// On larger screens the side panel can fold to a narrow strip (the › tab on its edge), giving the overview and the list
+// more room (the list goes to five cards a row). The strip shows the selected word: its English meaning large, running
+// down the strip, then a thin line, then the Korean word and its Hanja and its language dots. With nothing selected it
+// shows just the ? for the About page. Anywhere on the strip opens the panel again. The choice is remembered.
+// Phones keep their bottom sheet instead.
+const PANEL_KEY = "hanja-roots-panel";
+const panelCollapsed = () => document.body.classList.contains("panel-collapsed") && window.innerWidth > 640;
+// Folding and opening glide: the panel narrows to the strip's width (its contents fading first) or widens back to its
+// full size, with the round button riding its edge, and the words beside it filling the new room as it moves.
+let panelAnim = null;
+function animatePanel(on, done) {
+  const d = $("detail"), t = $("panel-toggle"), RAIL = 72, full = panelMax();
+  if (panelAnim) { cancelAnimationFrame(panelAnim.raf); panelAnim.finish(); }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.innerWidth <= 640) { done(); return; }
+  const from = on ? d.offsetWidth : RAIL, to = on ? RAIL : full, t0 = performance.now(), dur = 340;
+  if (!on) { done(); }   // opening: show the panel (empty-looking) at the strip's width, then widen it
+  d.classList.add("panel-anim");
+  d.style.display = "block";
+  d.style.width = from + "px";
+  let last = 0;
+  const finish = () => {
+    panelAnim = null;
+    d.classList.remove("panel-anim");
+    d.style.display = ""; d.style.width = ""; t.style.right = "";
+    if (on) done();
+    refresh();
+  };
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    const w = from + (to - from) * e;
+    d.style.width = w + "px";
+    t.style.right = (w - 14) + "px";
+    if (now - last > 50) { last = now; refresh(); }   // the overview and the list follow along
+    if (k < 1) panelAnim.raf = requestAnimationFrame(step); else finish();
+  };
+  panelAnim = { raf: requestAnimationFrame(step), finish };
+}
+function setPanelCollapsed(on, remember = true, animate = remember) {
+  if (animate) { animatePanel(on, () => setPanelCollapsed(on, remember, false)); if (remember) { try { localStorage.setItem(PANEL_KEY, on ? "collapsed" : "open"); } catch (e) {} } return; }
+  document.body.classList.toggle("panel-collapsed", on);
+  $("rail").hidden = !on;
+  // the same tab, in the same place halfway down the edge, folds the panel and opens it again
+  const t = $("panel-toggle");
+  t.setAttribute("aria-expanded", String(!on));
+  t.innerHTML = on ? CHEVRON_LEFT : CHEVRON_RIGHT;
+  t.title = on ? "Show panel" : "Hide panel";
+  t.setAttribute("aria-label", on ? "Show the side panel" : "Hide the side panel");
+  if (remember) { try { localStorage.setItem(PANEL_KEY, on ? "collapsed" : "open"); } catch (e) {} }
+  if (on) { clearTimeout(previewTimer); endPreview(); }
+  renderRail();
+  requestAnimationFrame(() => refresh());   // the overview and the list fill the new width
+}
+function renderRail() {
+  const rail = $("rail");
+  if (!rail || rail.hidden) return;
+  rail.innerHTML = "";
+  const i = state.selected;
+  if (i >= 0) {
+    const w = WORDS[i];
+    rail.appendChild(el("span", "rail-en", meaningOf(i).short));
+    const rest = el("span", "rail-rest");
+    const ko = el("span", "rail-ko", w[HANGUL] + " " + w[HANJA]);
+    ko.lang = "ko";
+    const dots = el("span", "rail-dots");
+    ["z", "j", "v"].forEach(c => dots.appendChild(el("i", w[CAT].includes(c) ? "on lang-" + c : "")));
+    rest.append(ko, dots);
+    rail.appendChild(rest);
+    rail.title = meaningOf(i).short + " · " + w[HANGUL] + " " + w[HANJA] + ". Show panel";
+  } else rail.title = "Show panel";
+}
+const CHEVRON = d => '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>';
+const CHEVRON_LEFT = CHEVRON("M7.5 2.5 4 6l3.5 3.5"), CHEVRON_RIGHT = CHEVRON("M4.5 2.5 8 6l-3.5 3.5");
+$("panel-toggle").innerHTML = CHEVRON_RIGHT;
+
+// The panel is always its full size (420px, or 300px on tablets) when open. Pressing the round button, or pulling it
+// toward the side it points (right to fold, left to open), folds or opens the panel. While pulled, the button follows
+// the pointer a little; past a short distance the panel glides shut or open.
+const panelMax = () => window.innerWidth <= 900 ? 300 : 420;
+document.body.style.removeProperty("--panel-w");
+try { localStorage.removeItem("hanja-roots-panel-width"); } catch (e) {}
+let panelDrag = null;
+$("panel-toggle").addEventListener("pointerdown", e => {
+  if (e.button > 0) return;
+  $("panel-toggle").setPointerCapture(e.pointerId);
+  panelDrag = { x0: e.clientX, moved: false, done: false };
+});
+$("panel-toggle").addEventListener("pointermove", e => {
+  if (!panelDrag || panelDrag.done) return;
+  const dx = e.clientX - panelDrag.x0;
+  if (!panelDrag.moved && Math.abs(dx) < 4) return;
+  panelDrag.moved = true;
+  const folded = document.body.classList.contains("panel-collapsed");
+  const pull = folded ? Math.min(0, dx) : Math.max(0, dx);   // only toward the side it would go
+  $("panel-toggle").style.translate = Math.max(-24, Math.min(24, pull)) + "px 0";
+  if (Math.abs(pull) > 30) { panelDrag.done = true; $("panel-toggle").style.translate = ""; setPanelCollapsed(!folded); }
+});
+const endPanelDrag = () => {
+  if (!panelDrag) return;
+  const { moved, done } = panelDrag;
+  panelDrag = null;
+  $("panel-toggle").style.translate = "";
+  if (!moved && !done) setPanelCollapsed(!document.body.classList.contains("panel-collapsed"));
+};
+// Clicking the panel's background (anywhere that isn't a button, link, or language card) folds it too; not after
+// selecting text, and not on phones, where the panel is a sheet
+$("detail").addEventListener("click", e => {
+  if (window.innerWidth <= 640 || document.body.classList.contains("panel-collapsed")) return;
+  if (e.target.closest("button, a, input, select, [role='button'], [tabindex], .lang-card, .dual-row, .tang-term")) return;
+  const sel = window.getSelection && window.getSelection();
+  if (sel && !sel.isCollapsed && $("detail").contains(sel.anchorNode)) return;
+  setPanelCollapsed(true);
+});
+$("panel-toggle").addEventListener("pointerup", endPanelDrag);
+$("panel-toggle").addEventListener("pointercancel", endPanelDrag);
+$("panel-toggle").addEventListener("keydown", e => {   // keyboard: Enter or Space folds or opens
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setPanelCollapsed(!document.body.classList.contains("panel-collapsed")); }
+});
+$("rail").addEventListener("click", () => setPanelCollapsed(false));
+try { if (localStorage.getItem(PANEL_KEY) === "collapsed") setPanelCollapsed(true, false, false); } catch (e) {}

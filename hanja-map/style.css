@@ -1128,3 +1128,143 @@ details.voices summary { cursor: pointer; }
   .char-big { font-size: 60px; }
   .char-card .chip-list { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Related words on a word page: the shared character (and its Korean syllable) in bold, the rest a step lighter */
+.word-chip .chip-ko.has-hit { color: #6b655b; }
+.word-chip .chip-ko .chip-hit { color: #000; font-weight: 700; }
+.lang-alt[title] { cursor: help; }
+
+/* Chinese: Mandarin and Cantonese side by side in one card, one row each with its own speaker */
+.lang-card.dual { padding: 14px 12px 16px 16px; cursor: default; }
+.lang-card.dual:hover { background: var(--card); }
+.dual-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  margin: 0 -4px; padding: 8px 4px; border-radius: 8px; cursor: pointer; }
+.dual-row + .dual-row { border-top: 1px solid #e2d9c8; border-radius: 0 0 8px 8px; }
+.dual-row:hover, .dual-row.is-playing { background: var(--hover); }
+.dual-row:focus-visible { outline: 2px solid #000; outline-offset: -2px; }
+.dual-name { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.dual-row .lang-word { margin-top: 2px; }
+.dual-row .speaker { position: static; }
+.dual-row.is-playing .speaker .cone { fill: #000; }
+.dual-row.is-playing .speaker .wave { animation: speaker-pulse 0.9s ease-in-out infinite; }
+.dual-row.unavailable { cursor: default; color: #8a8478; }
+.dual-row.unavailable:hover { background: none; }
+.lang-card.dual .lang-def { margin-top: 8px; }
+
+/* Why the site starts from Korean: in the intro panel and on the About page */
+#detail .intro-why { margin: 4px 0 6px; padding: 14px 0 0; border-top: 1px solid #000; }
+#detail .intro-why h3 { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; }
+#detail .intro-why p { margin: 0; font-size: 12px; line-height: 1.5; color: #4a453d; }
+.about-why { max-width: 42em; margin: 22px 0 0; padding: 14px 18px; border-radius: 8px; background: var(--hover); }
+.about-why h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.about-why p { margin: 0; font-size: 16px; }
+
+/* ---------- Overview: the seven blocks it opens with ---------- */
+#map-blocks { flex: 1; min-height: 0; overflow: auto; padding: 26px 30px 20px; }
+#map-blocks[hidden] { display: none; }
+.mb-band { margin-bottom: 26px; }
+.mb-title { margin-bottom: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.mb-total { font-weight: 400; letter-spacing: 0; color: #4a453d; }
+.mb-row { display: flex; align-items: stretch; gap: 6px; }
+.mb-block {
+  flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 12px 14px; border: 0; border-radius: 8px; color: #fff; text-align: left; cursor: pointer; overflow: hidden;
+  background: var(--mb-bg); background-size: 220% 220%; animation: mb-flow 14s ease-in-out infinite alternate;
+  transition: filter 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+}
+/* hover: the block darkens a little and gets a black edge drawn inside it, so its size and the grid don't change
+   (its colour is set again here, or the site's general button hover would turn it beige) */
+.mb-block:hover, .mb-block:focus-visible { background: var(--mb-bg); background-size: 220% 220%; filter: brightness(0.88);
+  box-shadow: inset 0 0 0 2px #000; outline: none; }
+.mb-out:hover b, .mb-out:hover span:not(.mb-sub) { text-decoration: underline; text-underline-offset: 3px; }
+.mb-block b, .mb-out b { font-size: 22px; font-weight: 600; line-height: 1.1; }
+.mb-block span { font-size: 13px; line-height: 1.3; }
+.mb-block .mb-sub, .mb-out .mb-sub { margin-top: 6px; font-weight: 600; }
+.mb-out { flex: none; width: 86px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.3; color: #4a453d; cursor: pointer; }
+.mb-out b { font-size: 15px; color: #000; }
+.mb-empty { opacity: 0.3; }
+.mb-zjv { --mb-bg: linear-gradient(135deg, var(--zh), var(--ja), var(--vi), var(--zh)); }
+.mb-zj { --mb-bg: linear-gradient(135deg, var(--zh), var(--ja), var(--zh)); }
+.mb-jv { --mb-bg: linear-gradient(135deg, var(--ja), var(--vi), var(--ja)); }
+.mb-zv { --mb-bg: linear-gradient(135deg, var(--zh), var(--vi), var(--zh)); }
+.mb-z { --mb-bg: var(--zh); } .mb-j { --mb-bg: var(--ja); } .mb-v { --mb-bg: var(--vi); }
+@keyframes mb-flow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .mb-block, .mb-block:hover { animation: none; transition: none; } }
+.mb-hint { max-width: 560px; margin: 4px 0 0; font-size: 13px; color: #5d574d; }
+/* top right, once a group is open */
+#map-back { position: absolute; top: 12px; right: 30px; z-index: 2; padding: 6px 12px;
+  border: 1px solid #000; border-radius: 8px; background: var(--card); font-size: 13px; font-weight: 500; }   /* like the search box and view switch */
+#map-back:hover { background: var(--hover); }
+@media (max-width: 640px) {
+  #map-blocks { padding: 18px 16px 14px; }
+  #map-back { right: 16px; }
+  .mb-band { margin-bottom: 20px; }
+  .mb-row { flex-direction: column; gap: 6px; }
+  .mb-line { display: flex; align-items: center; gap: 8px; }
+  .mb-block { flex-direction: row; align-items: baseline; gap: 8px; height: 44px; padding: 0 12px; align-items: center; }
+  .mb-block b { font-size: 16px; }
+  .mb-block span { font-size: 12.5px; white-space: nowrap; }
+  .mb-block .mb-sub { margin-top: 0; }
+  .mb-out { flex: 1; min-width: 0; width: auto; display: block; }
+  .mb-out b { margin-right: 6px; }
+  .mb-out b { font-size: 14px; }
+}
+
+/* The intro's ? button, top right: opens the About page */
+#detail .intro { position: relative; }
+
+#detail .intro-help {
+  position: absolute; top: 24px; right: 4px; width: 28px; height: 28px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid #000; border-radius: 50%; background: var(--card); color: #000;
+  font-size: 15px; font-weight: 600; line-height: 1; cursor: pointer;
+}
+#detail .intro-help:hover { background: #000; color: #fff; }
+#detail .intro-help:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+
+/* ---------- The side panel, folded to a strip (larger screens only) ---------- */
+.layout { position: relative; }
+/* a round button on the panel's edge, halfway down: press to fold or open the panel, drag to resize it */
+#panel-toggle {
+  position: absolute; top: 50%; right: calc(420px - 14px); z-index: 20; transform: translateY(-50%);
+  width: 28px; height: 28px; padding: 0; border: 1px solid #000; border-radius: 50%; background: var(--card); color: #000;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: none;
+}
+@media (min-width: 641px) and (max-width: 900px) { body:not(.panel-collapsed) #panel-toggle { right: calc(300px - 14px); } }
+/* while the panel glides, its contents fade out of the way */
+#detail.panel-anim { overflow: hidden; }
+#detail.panel-anim > * { opacity: 0; }
+#detail > * { transition: opacity 0.15s ease; }
+#panel-toggle:hover { background: #000; color: #fff; }
+#rail {
+  flex-shrink: 0; width: 72px; border-left: 1px solid #000; background: var(--card); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; padding: 20px 0; overflow: hidden;
+}
+#rail[hidden] { display: none; }
+@media (min-width: 641px) { body.panel-collapsed #panel-toggle { right: calc(72px - 14px); } }
+@media (min-width: 641px) { body.panel-collapsed #detail { display: none; } }
+#rail:hover { background: var(--hover); }
+.rail-open, .rail-help {
+  flex: none; width: 30px; height: 30px; padding: 0; border: 1.5px solid #000; border-radius: 8px; background: var(--card);
+  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer;
+}
+.rail-help { margin-top: 14px; border-radius: 50%; }
+.rail-open:hover, .rail-help:hover { background: #000; color: #fff; }
+/* the English meaning leads, running down the strip */
+.rail-en { margin-top: 4px; writing-mode: vertical-rl; font-size: 26px; font-weight: 600; line-height: 1.1; white-space: nowrap; }
+/* a soft line, then the Korean word with its Hanja, then which languages share it */
+.rail-rest { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 36px; margin-top: 30px; padding-top: 18px; border-top: 1px solid #d9d0bf; }
+.rail-ko { writing-mode: vertical-rl; font-size: 14px; color: #6a645a; letter-spacing: 0.08em; }
+.rail-dots { display: flex; flex-direction: column; gap: 5px; }
+.rail-dots i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1px #d6cdbd; }
+.rail-dots i.on { box-shadow: none; }
+.rail-dots i.on.lang-z { background: var(--zh); } .rail-dots i.on.lang-j { background: var(--ja); } .rail-dots i.on.lang-v { background: var(--vi); }
+/* with the panel folded, the list fits five cards to a row */
+@media (min-width: 641px) { body.panel-collapsed #list { grid-template-columns: repeat(auto-fill, minmax(max(170px, calc((100% - 4 * 8px) / 5)), 1fr)); } }
+@media (max-width: 640px) {
+  #panel-toggle, #rail { display: none !important; }
+}
+
+/* the panel's background folds it when clicked (larger screens) */
+@media (min-width: 641px) { body:not(.panel-collapsed) #detail { cursor: e-resize; }
+  #detail button, #detail a, #detail .lang-card, #detail .dual-row, #detail [role='button'] { cursor: pointer; } }

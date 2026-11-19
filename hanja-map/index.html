@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261115w">
+  <link rel="stylesheet" href="style.css?v=20261118x">
 </head>
 <body>
 
@@ -61,6 +61,8 @@
         -->
         <canvas id="map" aria-label="Every Korean word as a dot, arranged by the languages that share it, its number of characters, or its learner level"></canvas>
         <button type="button" id="reset-view" hidden>Reset view</button>
+        <div id="map-blocks" hidden></div>
+        <button type="button" id="map-back" hidden>← All groups</button>
       </div>
       <div id="list-wrap" hidden>
         <div id="list"></div>
@@ -70,6 +72,9 @@
     </div>
 
     <aside id="detail" aria-live="polite"></aside>
+    <!-- The side panel folds away to a narrow strip (larger screens only) -->
+    <button type="button" id="panel-toggle" aria-label="Hide the side panel" title="Hide panel" aria-controls="detail">›</button>
+    <aside id="rail" hidden></aside>
   </main>
   <!-- Phones: behind the word sheet; a tap here closes it -->
   <div id="sheet-backdrop"></div>
@@ -108,6 +113,13 @@
                old characters, and those words spread back to China, Korea, and Vietnam.</p>
             <p>Today Korean is written mostly in Hangul and Vietnamese in the Latin alphabet, but the words remain. Write them in
                characters again and they line up across all four languages.</p>
+          </div>
+          <div class="about-why">
+            <h3>Why Korean is the starting point</h3>
+            <p>Korean is the language I know best; I don't speak Chinese, Japanese, or Vietnamese. So the site works the way I
+               wanted to explore myself: start from a Korean word, then follow it outward to see which languages share it, how it
+               sounds there, and whether it still means the same thing. Everything is explained in English, for English speakers
+               and for people who know some Korean and wonder where its words come from.</p>
           </div>
           <div class="about-example">
             <div><small>Korean</small><b lang="ko">경제</b><span><span lang="ko">經濟</span> · gyeongje</span></div>
@@ -151,10 +163,11 @@
               <h3>Overview</h3>
               <img class="about-shot" src="about-overview.jpg" width="440" height="230"
                    alt="The overview with one word hovered: a pill reads 고행 苦行, penance, 249 words share a character, with lines to each of them">
-              <p class="about-legend"><span><b>Hover</b> a word and its relatives</span><span><b>Click</b> select</span>
+              <p class="about-legend"><span><b>Click a block</b> open its words</span><span><b>Hover</b> a word and its relatives</span><span><b>Click</b> select</span>
                  <span><b>Pinch or ⌘ scroll</b> zoom</span><span><b>Two fingers or drag</b> move</span><span><b>Double-click</b> reset</span></p>
-              <figcaption class="about-caption">Bands run from all three languages down to one. A word shared by two or three
-                 languages flows through their colours; lines join words that share a character.</figcaption>
+              <figcaption class="about-caption">The overview opens as seven blocks, one for each group of languages, each as wide as
+                 the number of words it holds. Open one to see its words as dots: a word shared by two or three languages flows
+                 through their colours, and lines join words that share a character.</figcaption>
             </figure>
             <figure>
               <h3>List</h3>
@@ -239,11 +252,11 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261115w"></script>
-  <script src="characters.js?v=20261115w"></script>
-  <script src="romanize.js?v=20261115w"></script>
-  <script src="recordings.js?v=20261115w"></script>
-  <script src="speech.js?v=20261115w"></script>
-  <script src="script.js?v=20261115w"></script>
+  <script src="words.js?v=20261118x"></script>
+  <script src="characters.js?v=20261118x"></script>
+  <script src="romanize.js?v=20261118x"></script>
+  <script src="recordings.js?v=20261118x"></script>
+  <script src="speech.js?v=20261118x"></script>
+  <script src="script.js?v=20261118x"></script>
 </body>
 </html>
