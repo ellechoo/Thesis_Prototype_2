@@ -1308,3 +1308,22 @@ details.voices summary { cursor: pointer; }
   .list-divider:first-child { margin-top: 4px; }
   .card .roman.sort-reading { display: block; margin-top: 2px; font-size: 12px; }   /* phones hide the romanization, but keep this */
 }
+
+/* A guessed meaning (borrowed from another language, or from its characters) looks like any other, with a small ≈ after it */
+.guess-mark { margin-left: 4px; font-size: 0.7em; font-weight: 500; font-style: normal; color: #8a8478; vertical-align: 0.35em; cursor: help;
+  line-height: 0; }   /* raised, but without making its line taller (which pushed a two-line meaning's last line past the card's clip) */
+/* room under a two-line meaning for its descenders (g, p, y) */
+.card .gloss { padding-bottom: 0.12em; margin-bottom: -0.12em; }
+.rail-en .guess-mark { margin: 4px 0 0; vertical-align: baseline; }
+
+/* Nothing inside a card gets squeezed: a card is a fixed 100px, and with a two-line meaning its lines used to shrink to
+   fit, clipping the bottoms of letters (g, p, y) in the Korean and the romanization. Fixed line heights keep everything
+   inside the card instead. */
+.card > * { flex-shrink: 0; }
+.card .ko { line-height: 18px; }
+.card .roman { line-height: 14px; }
+.card { padding-bottom: 9px; }
+@media (max-width: 640px) { .card { padding-bottom: 11px; } }
+
+/* On the word cards, the Hanja sits a step lighter than the romanization under it */
+.card .ko .hj { color: #a8a298; }

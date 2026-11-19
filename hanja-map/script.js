@@ -541,7 +541,7 @@ function roundRect(x, y, w, h, r) {
 // A word as a pill: Hangul, Hanja, and meaning. dark = the selected word.
 function mapPill(i, x, y, dark, extra) {
   const { W } = layout, w = WORDS[i], s = mapCam.s;
-  const main = w[HANGUL] + "  " + w[HANJA] + "  ·  " + meaningOf(i).short;
+  const main = w[HANGUL] + "  " + w[HANJA] + "  ·  " + meaningText(meaningOf(i));
   ctx.font = "12px Inter, system-ui, sans-serif";
   const ew = extra ? ctx.measureText(extra).width : 0;
   ctx.font = '500 15px Inter, "Noto Sans KR", "Noto Sans TC", sans-serif';
@@ -867,7 +867,7 @@ function card(i) {
   // The meaning leads (for English readers), then the Korean word with its Hanja, then the romanization.
   // A column of dots on the right has a fixed slot for Chinese, Japanese, and Vietnamese, filled when that language shares the word.
   const m = meaningOf(i);
-  const en = el("div", "gloss" + (m.source !== "ko" ? " borrowed" : ""), m.short);
+  const en = withMark(el("div", "gloss", m.short), m);
   const ko = el("div", "ko", w[HANGUL]);
   ko.lang = "ko";
   ko.appendChild(el("span", "hj", w[HANJA]));
@@ -943,16 +943,28 @@ function meaningOf(i) {
   if (w[KO_MEANING].trim()) m = { source: "ko", full: w[KO_MEANING], short: englishShort(w[KO_MEANING]) };
   else {
     const borrowed = [["ja", w[JP_MEANING]], ["zh", w[ZH_MEANING]], ["vi", w[VI_MEANING]]].find(([, x]) => x && x.trim());
-    if (borrowed) m = { source: borrowed[0], full: borrowed[1], short: "≈ " + englishShort(borrowed[1]) };
+    if (borrowed) m = { source: borrowed[0], full: borrowed[1], short: englishShort(borrowed[1]) };
     else {
       const parts = Array.from(w[HANJA]).map(c => (CHAR_MEANING[c] || "?").split(",")[0]);
       m = { source: "chars", full: Array.from(w[HANJA]).map(c => c + " " + (CHAR_MEANING[c] || "?")).join(" · "),
-            short: "(" + parts.join(" + ") + ")" };
+            short: parts.join(" + ") };
     }
   }
+  m.guessed = m.source !== "ko";   // borrowed from another language, or pieced together from the characters
   meaningCache.set(i, m);
   return m;
 }
+// A guessed meaning looks like any other, with a small ≈ after it (hover it for where the meaning came from)
+function guessMark(m) {
+  const s = el("span", "guess-mark", "≈");
+  s.title = m.source === "chars" ? "No English meaning in the dictionaries; these are its characters' meanings"
+    : "No English meaning in the Korean dictionaries; this is the " + BORROWED_FROM[m.source] + " meaning";
+  return s;
+}
+// The meaning with its mark, as an element's contents
+function withMark(e, m) { if (m.guessed) e.appendChild(guessMark(m)); return e; }
+// The meaning as plain text (titles, labels, the overview's pills): the ≈ after it
+const meaningText = m => m.short + (m.guessed ? " ≈" : "");
 const BORROWED_FROM = { ja: "Japanese", zh: "Chinese", vi: "Vietnamese" };
 // One line explaining where a meaning came from, when it isn't from the Korean dictionaries
 function meaningNote(m) {
@@ -963,7 +975,7 @@ function meaningNote(m) {
 
 // "학교 學校 · school"
 function wordLabel(i) {
-  const g = meaningOf(i).short;
+  const g = meaningText(meaningOf(i));
   return WORDS[i][HANGUL] + " " + WORDS[i][HANJA] + (g ? " · " + g : "");
 }
 
@@ -1029,7 +1041,7 @@ function renderIntro() {
     const ex = el("button", "intro-example");
     ex.type = "button";
     const head = el("span", "ex-head");
-    head.append(el("span", "ex-ko", w[HANGUL]), el("span", "ex-sub", w[HANJA] + " · " + meaningOf(i).short));
+    head.append(el("span", "ex-ko", w[HANGUL]), el("span", "ex-sub", w[HANJA] + " · " + meaningText(meaningOf(i))));
     const grid = el("span", "ex-grid");
     [["Korean", KO_ROMAN[i]], ["Mandarin", w[ZH_PINYIN] && pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")],
      ["Japanese", w[JP_READING] && romajiWithMacrons(JP_ROMAN[i])], ["Vietnamese", w[VI_WORD]]].forEach(([lang, say]) => {
@@ -1039,7 +1051,7 @@ function renderIntro() {
       grid.appendChild(cell);
     });
     ex.append(head, grid);
-    ex.setAttribute("aria-label", "See " + w[HANGUL] + ", " + meaningOf(i).short);
+    ex.setAttribute("aria-label", "See " + w[HANGUL] + ", " + meaningText(meaningOf(i)));
     ex.addEventListener("click", () => selectAndFly(i));
     box.appendChild(ex);
   }
@@ -1113,7 +1125,7 @@ function renderPanel(i, preview) {
   // The English meaning, as the panel's heading
   const meaning = meaningOf(i);
   const head = el("div", "panel-head");
-  head.appendChild(el("h2", "panel-en" + (meaning.source === "ko" ? "" : " borrowed"), meaning.short));
+  head.appendChild(withMark(el("h2", "panel-en", meaning.short), meaning));
   if (meaning.source !== "ko") head.appendChild(el("p", "panel-note", meaning.source === "chars"
     ? "No English meaning in the Korean dictionaries; these are its characters' meanings."
     : "No English meaning in the Korean dictionaries; this is the " + BORROWED_FROM[meaning.source] + " meaning."));
@@ -1643,7 +1655,7 @@ $("random").addEventListener("click", () => {
     rolling = false;
     box.classList.remove("rolling");
     dice.classList.remove("rolling");
-    box.value = meaningOf(i).short.replace(/^≈ /, "");
+    box.value = meaningOf(i).short;
     box.dataset.random = "1";
     selectAndFly(i);
     if (state.view === "list") revealInList(i);
@@ -1656,7 +1668,7 @@ $("random").addEventListener("click", () => {
   let k = 0;
   const step = () => {
     if (k >= delays.length) { land(); return; }
-    box.value = meaningOf(pick()).short.replace(/^≈ /, "");
+    box.value = meaningOf(pick()).short;
     setTimeout(step, delays[k++]);
   };
   step();
@@ -1909,7 +1921,7 @@ function wordButton(i, ch) {
   if (hits.length && hg.length === hj.length) ko.append(mark(hg, "ko"), document.createTextNode(" "), mark(hj, "ko"));
   else if (hits.length) ko.append(document.createTextNode(WORDS[i][HANGUL] + " "), mark(hj, "ko"));
   else ko.textContent = WORDS[i][HANGUL] + " " + WORDS[i][HANJA];
-  b.append(ko, el("span", "chip-en", meaningOf(i).short));
+  b.append(ko, withMark(el("span", "chip-en", meaningOf(i).short), meaningOf(i)));
   const dots = el("span", "share-bar");   // the list's column of dots: Chinese, Japanese, Vietnamese
   ["z", "j", "v"].forEach(c => dots.appendChild(el("i", WORDS[i][CAT].includes(c) ? "on lang-" + c : "")));
   dots.title = "Also a word in " + joinList(Array.from(WORDS[i][CAT]).map(c => LANG_NAME[c]));
@@ -1928,7 +1940,7 @@ function renderWordPage(i) {
   state.selected = i;   // lets the Vietnamese check finish for this word
   const page = $("word-content");
   page.innerHTML = "";
-  document.title = w[HANGUL] + " " + w[HANJA] + " · " + meaningOf(i).short + " · Hanja Roots";
+  document.title = w[HANGUL] + " " + w[HANJA] + " · " + meaningText(meaningOf(i)) + " · Hanja Roots";
 
   // Heading: the word and its Hanja, its meaning, and two pills (which languages share it, and its learner level)
   const hero = el("header", "hero");
@@ -1938,8 +1950,7 @@ function renderWordPage(i) {
   title.append(el("span", "hero-ko", w[HANGUL]), el("span", "hero-hanja", w[HANJA]));
   hero.appendChild(title);
   const meaning = meaningOf(i);
-  hero.appendChild(el("p", "hero-meaning" + (meaning.source === "ko" ? "" : " borrowed"),
-    meaning.source === "ko" ? meaning.full : meaning.source === "chars" ? meaning.short : "≈ " + meaning.full));
+  hero.appendChild(withMark(el("p", "hero-meaning", meaning.source === "chars" ? meaning.short : meaning.full), meaning));
   if (meaning.source !== "ko") hero.appendChild(el("p", "hero-note", meaningNote(meaning)));
   const facts = el("p", "hero-facts");
   const group = el("button", "fact-group");
@@ -2159,7 +2170,7 @@ function renderRail() {
   const i = state.selected;
   if (i >= 0) {
     const w = WORDS[i];
-    rail.appendChild(el("span", "rail-en", meaningOf(i).short));
+    rail.appendChild(withMark(el("span", "rail-en", meaningOf(i).short), meaningOf(i)));
     const rest = el("span", "rail-rest");
     const ko = el("span", "rail-ko", w[HANGUL] + " " + w[HANJA]);
     ko.lang = "ko";
@@ -2167,7 +2178,7 @@ function renderRail() {
     ["z", "j", "v"].forEach(c => dots.appendChild(el("i", w[CAT].includes(c) ? "on lang-" + c : "")));
     rest.append(ko, dots);
     rail.appendChild(rest);
-    rail.title = meaningOf(i).short + " · " + w[HANGUL] + " " + w[HANJA] + ". Show panel";
+    rail.title = meaningText(meaningOf(i)) + " · " + w[HANGUL] + " " + w[HANJA] + ". Show panel";
   } else rail.title = "Show panel";
 }
 const CHEVRON = d => '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
@@ -2235,7 +2246,7 @@ const firstHangul = t => (t.match(/[\uAC00-\uD7A3]/) || [""])[0];
 const SORTS = {
   en: { label: "English", hint: "A–Z", locale: "en", notLabel: "Other meanings",
         // meanings that don't start with a Latin letter (a few rare ones) come last
-        has: i => /^[^A-Za-z]*[A-Za-z]/.test(meaningOf(i).short.replace(/^[≈\s(\-'"“]+/, "").charAt(0) ? meaningOf(i).short.replace(/^[≈\s(\-'"“]+/, "").charAt(0) : ""),
+        has: i => /[A-Za-z]/.test(meaningOf(i).short.replace(/^[\s(\-'"“]+/, "").charAt(0)),
         key: i => meaningOf(i).short.replace(/^[^A-Za-z0-9]+/, ""),
         head: i => { const c = meaningOf(i).short.replace(/^[^A-Za-z0-9]+/, "").charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : "#"; } },
   ko: { label: "Korean", hint: "가나다", locale: "ko",
