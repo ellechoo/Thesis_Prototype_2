@@ -371,7 +371,7 @@ function buildLayout(animate) {
   let y = 0, width = 0;
   secs.forEach(s => {
     const total = s.blocks.reduce((a, b) => a + b.idx.length, 0);
-    heads.push({ kind: "band", x: 0, y, title: s.title.toUpperCase(), count: total.toLocaleString(),
+    heads.push({ kind: "band", x: 0, y, title: s.title, count: total.toLocaleString(),
       // a band with no block labels under its title (all three) puts its title down in their row, closer to its dots
       labelY: s.blocks.some(b => b.label) ? null : y + hdr * 0.62 });
     const top = y + hdr;
@@ -552,9 +552,9 @@ function roundRect(x, y, w, h, r) {
 function mapPill(i, x, y, dark, extra) {
   const { W } = layout, w = WORDS[i], s = mapCam.s;
   const main = w[HANGUL] + "  " + w[HANJA] + "  ·  " + meaningText(meaningOf(i));
-  ctx.font = "12px Inter, system-ui, sans-serif";
+  ctx.font = '12px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif';
   const ew = extra ? ctx.measureText(extra).width : 0;
-  ctx.font = '500 15px Inter, "Noto Sans KR", "Noto Sans TC", sans-serif';
+  ctx.font = '500 15px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif';
   const mw = ctx.measureText(main).width, pw = mw + ew + 28, ph = 32, off = Math.max(10, s * 0.6);
   // kept clear of the canvas's edges by the site's side padding (30px, or 16px on phones), above the dot if there's room
   const edge = window.innerWidth <= 640 ? 16 : 30, H = layout.H;
@@ -572,7 +572,7 @@ function mapPill(i, x, y, dark, extra) {
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillStyle = dark ? "#fff" : "#000";
   ctx.fillText(main, px + 14, py + ph / 2 + 1);
-  if (extra) { ctx.font = "12px Inter, system-ui, sans-serif"; ctx.fillStyle = dark ? "#ccc" : "#4a453d"; ctx.fillText(extra, px + 14 + mw, py + ph / 2 + 1); }
+  if (extra) { ctx.font = '12px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif'; ctx.fillStyle = dark ? "#ccc" : "#4a453d"; ctx.fillText(extra, px + 14 + mw, py + ph / 2 + 1); }
 }
 
 function draw() {
@@ -589,19 +589,19 @@ function draw() {
     if (h.kind === "band") {
       // small caps: the title in tracked capitals, then its count in grey
       const bx = Math.max(x, 8), ty = h.labelY === null ? y + 16 : mapCam.y + h.labelY * s + 2;
-      ctx.letterSpacing = "0.08em";
-      ctx.font = '600 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#000";
+      ctx.letterSpacing = "0px";
+      ctx.font = '600 10.5px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif'; ctx.fillStyle = "#000";
       ctx.fillText(h.title, bx, ty);
       const tw = ctx.measureText(h.title).width;
       ctx.letterSpacing = "0px";
-      ctx.font = '400 10.5px Inter, "Noto Sans KR", system-ui, sans-serif'; ctx.fillStyle = "#4a453d";
+      ctx.font = '400 10.5px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif'; ctx.fillStyle = "#4a453d";
       ctx.fillText("  ·  " + h.count, bx + tw, ty);
       lastEnd = -1e9;
       return;
     }
     // a block's label sits above it, within the room up to the next block (the last block may run to the edge);
     // a narrower block gets a shorter label (its languages' dots and its count), and one too narrow for that gets none
-    ctx.font = "10.5px Inter, system-ui, sans-serif";
+    ctx.font = '10.5px "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", sans-serif';
     const dotsW = h.cat.length ? h.cat.length * 6.5 + 3.5 : 0;
     const room = h.last ? W - 6 - x : (h.w + 1.5) * s;
     let text = h.text;
@@ -656,7 +656,7 @@ function draw() {
     // zoomed in: each dot becomes a tile with its word
     const size = s * 0.88, fs = Math.min(15, s * 0.26);
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = '500 ' + fs.toFixed(1) + 'px "Noto Sans KR", sans-serif';
+    ctx.font = '500 ' + fs.toFixed(1) + 'px "LINE Seed KR", sans-serif';
     for (let i = 0; i < n; i++) {
       const x = sx(i), y = sy(i);
       if (!onScreen(x, y, s)) continue;
@@ -2656,5 +2656,8 @@ try { state.sort = SORTS[localStorage.getItem(SORT_KEY)] ? localStorage.getItem(
 renderSortMenu();
 $("sort").hidden = state.view !== "list";
 if (state.view === "list") renderList();
+// the summary's labels are drawn on a canvas, which can't swap fonts itself: redraw once LINE Seed has loaded
+if (document.fonts) Promise.all(["12px \"LINE Seed Sans\"", "12px \"LINE Seed KR\""].map(f => document.fonts.load(f)))
+  .then(() => { if (state.view === "map") redrawMap(); }).catch(() => {});
 // sort the words ahead of time, once the page is idle, so the first visit to the list doesn't wait
 (window.requestIdleCallback || (f => setTimeout(f, 1500)))(() => sortedWords());

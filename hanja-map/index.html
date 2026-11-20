@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hanja Roots</title>
-  <!-- Fonts: Inter for English and Vietnamese; Noto Sans in its Korean, Japanese, and Traditional and Simplified Chinese
-       versions, so shared characters are drawn the way each language writes them -->
+  <!-- Fonts: LINE Seed (in fonts/) for English, Korean, and traditional characters, and LINE Seed JP for Japanese; Noto Sans
+       for what LINE Seed lacks (accented letters such as Vietnamese and pinyin, simplified Chinese, a few rare Hanja) -->
+  <link rel="preload" href="fonts/LINESeedSans-Rg.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/LINESeedSansKR-Rg.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261120e">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LINE+Seed+JP:wght@400;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css?v=20261120i">
 </head>
 <body>
 
@@ -89,8 +91,10 @@
 
   <div id="word-page" hidden>
     <nav class="page-bar" aria-label="Page">
-      <button type="button" id="back" class="page-site" aria-label="Hanja Roots, back to the gallery" title="Back to the gallery">Hanja Roots</button>
-      <button type="button" id="page-about">About</button>
+      <span class="page-brand">
+        <button type="button" id="back" class="page-site" aria-label="Hanja Roots, back to the gallery" title="Back to the gallery">Hanja Roots</button>
+        <span class="about-slot"><button type="button" id="page-about">About</button></span>
+      </span>
     </nav>
     <main id="word-content"></main>
     <main id="about-content" hidden>
@@ -260,11 +264,12 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261120e"></script>
-  <script src="characters.js?v=20261120e"></script>
-  <script src="romanize.js?v=20261120e"></script>
-  <script src="recordings.js?v=20261120e"></script>
-  <script src="speech.js?v=20261120e"></script>
-  <script src="script.js?v=20261120e"></script>
+  <script src="words.js?v=20261120i"></script>
+  <script src="characters.js?v=20261120i"></script>
+  <script src="romanize.js?v=20261120i"></script>
+  <script src="recordings.js?v=20261120i"></script>
+  <script src="speech.js?v=20261120i"></script>
+  <script src="fonts.js?v=20261120i"></script>
+  <script src="script.js?v=20261120i"></script>
 </body>
 </html>

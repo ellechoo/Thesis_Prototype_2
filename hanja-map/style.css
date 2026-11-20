@@ -2,13 +2,32 @@
 
 * { box-sizing: border-box; }
 
-/* Each language draws shared characters its own way: text tagged with a language uses that language's font
-   (Latin letters inside it still use Inter) */
-:lang(ko) { font-family: Inter, "Noto Sans KR", system-ui, sans-serif; }
-:lang(ja) { font-family: Inter, "Noto Sans JP", system-ui, sans-serif; }
-:lang(zh-Hant) { font-family: Inter, "Noto Sans TC", system-ui, sans-serif; }
-:lang(zh-Hans) { font-family: Inter, "Noto Sans SC", system-ui, sans-serif; }
-:lang(vi) { font-family: Inter, "Noto Sans TC", system-ui, sans-serif; }
+/* Fonts: LINE Seed for English, Korean, Japanese, and traditional characters (the site's look). LINE Seed only comes
+   in regular and bold, so medium and semibold text uses the nearest of the two. */
+@font-face { font-family: "LINE Seed Sans"; src: url("fonts/LINESeedSans-Rg.woff2") format("woff2"); font-weight: 100 549; font-display: swap; }
+@font-face { font-family: "LINE Seed Sans"; src: url("fonts/LINESeedSans-Bd.woff2") format("woff2"); font-weight: 550 900; font-display: swap; }
+@font-face { font-family: "LINE Seed KR"; src: url("fonts/LINESeedSansKR-Rg.woff2") format("woff2"); font-weight: 100 549; font-display: swap; }
+@font-face { font-family: "LINE Seed KR"; src: url("fonts/LINESeedSansKR-Bd.woff2") format("woff2"); font-weight: 550 900; font-display: swap; }
+@font-face { font-family: "LINE Seed TW"; src: url("fonts/LINESeedTW-Rg.woff2") format("woff2"); font-weight: 100 549; font-display: swap; }
+@font-face { font-family: "LINE Seed TW"; src: url("fonts/LINESeedTW-Bd.woff2") format("woff2"); font-weight: 550 900; font-display: swap; }
+:root {
+  --font: "LINE Seed Sans", "LINE Seed KR", "LINE Seed TW", "LINE Seed JP", "Noto Sans KR", system-ui, sans-serif;
+  --font-noto: "Noto Sans", "Noto Sans KR", "Noto Sans SC", system-ui, sans-serif;
+}
+/* Each language draws shared characters its own way: text tagged with a language uses that language's font */
+:lang(ko) { font-family: var(--font); }
+:lang(ja) { font-family: "LINE Seed Sans", "LINE Seed JP", "LINE Seed TW", "Noto Sans KR", system-ui, sans-serif; }
+:lang(zh-Hant), :lang(zh) { font-family: "LINE Seed Sans", "LINE Seed TW", "LINE Seed JP", "Noto Sans KR", system-ui, sans-serif; }
+:lang(zh-Hans) { font-family: "Noto Sans", "Noto Sans SC", system-ui, sans-serif; }
+:lang(vi) { font-family: var(--font-noto); }
+/* What LINE Seed lacks, a whole word at a time (fonts.js finds these): words with accented letters (Vietnamese, pinyin,
+   ō) in Noto Sans, and runs of characters LINE Seed doesn't have (simplified Chinese, rare Hanja) in Noto Sans SC or KR */
+.f-noto { font-family: var(--font-noto); }
+.f-sc { font-family: "Noto Sans", "Noto Sans SC", "Noto Sans KR", system-ui, sans-serif; }
+:lang(ko) .f-sc { font-family: "Noto Sans KR", "Noto Sans SC", system-ui, sans-serif; }
+/* Pronunciations are in italics, which LINE Seed doesn't have, so they're set in Noto Sans (a true italic) */
+.card .roman, .lang-reading, .wl-reading, .wa-read, .borrowed { font-family: var(--font-noto); }
+button, input, select, textarea { font-family: inherit; }
 
 /* Warm paper palette: a warm white page, cream boxes, and a deeper hanji tone for the word panel */
 :root {
@@ -41,8 +60,8 @@ html, body {
 body {
   display: flex;
   flex-direction: column;
-  /* Latin text in Inter; anything else falls back to the Korean font, since the site is about Korean words */
-  font-family: Inter, "Noto Sans KR", system-ui, sans-serif;
+  /* LINE Seed for English and Korean; anything else falls back along the list (see the fonts at the top) */
+  font-family: var(--font);
   font-size: 15px;
   color: #000;
   background: var(--paper);
@@ -341,7 +360,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
 .map3d-group[aria-pressed="true"] { background: #000; color: #fff; }
 .map3d-group[aria-pressed="true"] span { color: var(--line); }
 
-.map3d-lang { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; white-space: nowrap; }
+.map3d-lang { font-size: 13px; font-weight: 600;  color: #333; white-space: nowrap; }
 .map3d-note { font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #777; }
 
 .map3d-words { inset: 0; }
@@ -351,7 +370,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #000; outline-off
   width: 240px; max-height: calc(100% - 80px); overflow: auto;
   padding: 6px; background: rgba(250, 248, 243, 0.94); border: 1px solid #000;
 }
-.map3d-guide p { margin: 2px 4px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.map3d-guide p { margin: 2px 4px 6px; font-size: 11px; font-weight: 600;  }
 .map3d-guide button {
   display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: baseline;
   width: 100%; padding: 4px 6px; border: 0; background: none; text-align: left; font-size: 12px; line-height: 1.3;
@@ -554,7 +573,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 }
 #detail .char-glyph { grid-row: 1 / span 2; font-size: 54px; font-weight: 500; line-height: 1; }
 #detail .char-name { display: flex; flex-direction: column; }
-#detail .char-name-lang { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #5a554c; }
+#detail .char-name-lang { font-size: 10px; font-weight: 500;  color: #5a554c; }
 #detail .char-name-say { font-size: 18px; font-weight: 500; }
 
 /* The example word: one word read in four languages; clicking it opens the word */
@@ -588,7 +607,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 #about-content[hidden] { display: none; }
 
 .about-toc { position: sticky; top: 100px; align-self: start; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
-.about-toc-title { margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #555; }
+.about-toc-title { margin: 0 0 4px; font-size: 12px; font-weight: 600;  color: #555; }
 .about-toc a { color: #333; text-decoration: none; }
 .about-toc a:hover { color: #000; text-decoration: underline; text-underline-offset: 4px; }
 
@@ -598,7 +617,7 @@ button.speak:disabled { color: #999; border-color: #999; cursor: not-allowed; }
 .about-lead { margin: 0; max-width: 30em; font-size: 22px; line-height: 1.45; }
 
 .about-section { padding: 30px 0 48px; border-top: 1px solid #000; scroll-margin-top: 80px; }
-.about-section h2 { margin: 0 0 22px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.about-section h2 { margin: 0 0 22px; font-size: 13px; font-weight: 600;  }
 .about-prose { max-width: 38em; }
 .about-prose p, p.about-prose { margin: 0 0 14px; font-size: 17px; }
 p.about-small { font-size: 15px; }
@@ -612,7 +631,7 @@ p.about-small { font-size: 15px; }
   background: var(--card); border: 1px solid #000; border-radius: 8px; overflow: hidden; }
 .about-example > div { padding: 16px 18px; border-left: 1px solid var(--about-rule); }
 .about-example > div:first-child { border-left: 0; }
-.about-example small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.about-example small { display: block; font-size: 11px; font-weight: 600;  }
 .about-example b { display: block; margin-top: 6px; font-size: 30px; font-weight: 500; line-height: 1.3; }
 .about-example > div > span { font-size: 14px; color: var(--about-mute); }
 
@@ -648,14 +667,14 @@ p.about-small { font-size: 15px; }
 
 /* Terms and sources, side by side */
 .about-ref { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; }
-.about-subhead { margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #555; }
+.about-subhead { margin: 0 0 10px; font-size: 12px; font-weight: 600;  color: #555; }
 .about-gloss { margin: 0; font-size: 14px; }
 .about-gloss div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 9px 0; border-top: 1px solid var(--about-rule); }
 .about-gloss dt { font-weight: 600; }
 .about-gloss dd { margin: 0; color: #222; }
 .about-src { width: 100%; border-collapse: collapse; font-size: 14px; }
 .about-src th, .about-src td { padding: 9px 12px 9px 0; text-align: left; vertical-align: top; border-top: 1px solid var(--about-rule); }
-.about-src th { border-top: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #555; }
+.about-src th { border-top: 0; font-size: 11px; font-weight: 600;  color: #555; }
 .about-src td:last-child { width: 26%; color: #333; }
 .about-fineprint { margin: 18px 0 0; font-size: 13px; color: var(--about-mute); }
 
@@ -761,7 +780,7 @@ p.about-small { font-size: 15px; }
   border-top: 1px solid #000;
 }
 
-.page-section h2 { margin: 0 0 14px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.page-section h2 { margin: 0 0 14px; font-size: 13px; font-weight: 600;  }
 .section-note { margin: -6px 0 14px; color: #444; }
 
 /* Sounds, side by side */
@@ -798,7 +817,7 @@ p.about-small { font-size: 15px; }
   padding: 14px 16px 16px;
 }
 
-.lang-grid section.lang h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.lang-grid section.lang h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600;  }
 .lang-grid section.lang .word { font-size: 30px; line-height: 1.2; }
 .lang-grid section.lang .reading { font-size: 15px; color: #333; margin-top: 2px; }
 .lang-grid section.lang .meaning { margin: 10px 0; line-height: 1.45; }
@@ -964,7 +983,7 @@ details.voices summary { cursor: pointer; }
 .lang-card:hover { background: var(--hover); }
 .lang-card:focus-visible { outline: 2px solid #000; outline-offset: -4px; }
 .lang-label-row { display: flex; align-items: center; gap: 10px; min-height: 18px; }
-.lang-label { font-size: 11px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: #5a554c; }
+.lang-label { font-size: 11px; font-weight: 500;  color: #5a554c; }
 .lang-word { margin-top: 6px; font-size: 26px; font-weight: 500; line-height: 1.25; }
 .lang-alt { font-size: 17px; font-weight: 400; color: #6a645a; }
 .lang-reading { margin-top: 2px; font-size: 15px; font-style: italic; color: #4a453d; }   /* romanization in italics: a pronunciation */
@@ -1142,7 +1161,7 @@ details.voices summary { cursor: pointer; }
 .dual-row + .dual-row { border-top: 1px solid #e2d9c8; border-radius: 0 0 8px 8px; }
 .dual-row:hover, .dual-row.is-playing { background: var(--hover); }
 .dual-row:focus-visible { outline: 2px solid #000; outline-offset: -2px; }
-.dual-name { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.dual-name { display: block; font-size: 11px; font-weight: 600;  }
 .dual-row .lang-word { margin-top: 2px; }
 .dual-row .speaker { position: static; }
 .dual-row.is-playing .speaker .cone { fill: #000; }
@@ -1163,7 +1182,7 @@ details.voices summary { cursor: pointer; }
 #map-blocks { flex: 1; min-height: 0; overflow: auto; padding: 26px 30px 20px; }
 #map-blocks[hidden] { display: none; }
 .mb-band { margin-bottom: 26px; }
-.mb-title { margin-bottom: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.mb-title { margin-bottom: 8px; font-size: 10.5px; font-weight: 600;  }
 .mb-total { font-weight: 400; letter-spacing: 0; color: #4a453d; }
 .mb-row { display: flex; align-items: stretch; gap: 6px; }
 .mb-block {
@@ -1292,8 +1311,8 @@ details.voices summary { cursor: pointer; }
   border-bottom: 1px solid #000; font-size: 18px; font-weight: 600; }
 .list-divider:first-child { margin-top: 0; }
 .list-divider small { font-size: 12px; font-weight: 400; color: #5d574d; }
-.list-divider.not { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d574d; border-bottom-color: #cfc6b4; }
-.list-divider.not small { letter-spacing: 0; text-transform: none; }
+.list-divider.not { font-size: 12px;  color: #5d574d; border-bottom-color: #cfc6b4; }
+.list-divider.not small { letter-spacing: 0; }
 /* the sorting language's reading, in its ink, in place of the Korean romanization */
 .card .roman.sort-reading { font-style: normal; font-weight: 600; font-size: 11px; }
 @media (max-width: 1100px) {
@@ -1332,7 +1351,7 @@ details.voices summary { cursor: pointer; }
 .wl-strip { margin-top: 26px; }
 .wl-row { display: flex; flex-wrap: wrap; gap: 18px 36px; padding: 16px 0; border-top: 1px solid #000; border-bottom: 1px solid #e2d9c8; }
 .wl-item { display: flex; flex-direction: column; gap: 2px; min-width: 110px; max-width: 250px; }
-.wl-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+.wl-label { font-size: 11px; font-weight: 600;  }
 .wl-written { font-size: 26px; line-height: 1.25; }
 .wl-reading { display: flex; align-items: center; gap: 6px; min-height: 26px; font-size: 16px; font-style: italic; color: #333; }
 .wl-kana { font-style: normal; font-size: 13px; color: #6a645a; }
@@ -1359,7 +1378,7 @@ details.voices summary { cursor: pointer; }
 .wc-forms { margin: 4px 0 0; min-height: 1.45em; text-align: center; font-size: 13px; line-height: 1.45; color: #6a645a; }
 .wc-reads { display: grid; grid-template-columns: auto minmax(0, 1fr); margin: 18px 0 0; }
 .wc-reads dt, .wc-reads dd { margin: 0; padding: 7px 0; border-top: 1px solid #e2d9c8; line-height: 20px; }
-.wc-reads dt { padding-right: 16px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #333; }
+.wc-reads dt { padding-right: 16px; font-size: 11px; font-weight: 600;  color: #333; }
 .wc-reads dd { font-size: 17px; }
 .wc-reads dd.tang { color: #5d574d; }
 .wc-chips { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
@@ -1402,7 +1421,7 @@ details.voices summary { cursor: pointer; }
 .cd-seg button[aria-pressed="true"] { background: #000; color: #fff; }
 .cd-sort { font-size: 12.5px; color: #5d574d; }
 .cd-body { flex: 1; min-height: 0; overflow: auto; padding: 0 28px 16px; }
-.cd-group { margin: 14px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+.cd-group { margin: 14px 0 6px; font-size: 11px; font-weight: 600;  }
 .cd-group span { font-weight: 400; color: #6a645a; }
 .cd-list { display: flex; flex-direction: column; gap: 5px; }
 .cd-empty { font-size: 14px; color: #5d574d; }
@@ -1449,7 +1468,7 @@ body.drawer-open { overflow: hidden; }
 .wa-head { padding-bottom: 4px; }
 .wa-head.wa-k { border-top-left-radius: 12px; } .wa-head.wa-v { border-top-right-radius: 12px; }
 .wa-row.wa-last.wa-k { border-bottom-left-radius: 12px; } .wa-row.wa-last.wa-v { border-bottom-right-radius: 12px; }
-.wa-lab { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.wa-lab { font-size: 11px; font-weight: 600;  }
 .wa-word { padding-top: 6px; padding-bottom: 20px; }
 .wa-written { font-size: 36px; line-height: 1.2; }
 .wa-read { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 6px; font-size: 16px; font-style: italic; }
@@ -1606,3 +1625,14 @@ body.drawer-open { overflow: hidden; }
 
 /* Cards off screen skip layout and painting, so a long jump through the alphabet stays quick */
 #list .card { content-visibility: auto; contain-intrinsic-size: auto 100px; }
+
+/* Word pages: About slides out beside the title only while the title is hovered (as in the gallery's top bar) */
+.page-bar .page-brand { display: flex; align-items: center; }
+.page-bar .about-slot { display: flex; max-width: 0; margin-left: 0; overflow: hidden; opacity: 0;
+  transition: max-width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease; }
+.page-bar .page-brand:hover .about-slot, .page-bar .page-brand:has(:focus-visible) .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; }
+.page-bar #page-about { white-space: nowrap; }
+@media (hover: none) { .page-bar .about-slot { max-width: 90px; margin-left: 12px; opacity: 1; } }
+
+/* Intro: more room above the top line and below the bottom line around 漢字 and its names */
+#detail .intro .char-names { margin: 18px 0 30px; }
