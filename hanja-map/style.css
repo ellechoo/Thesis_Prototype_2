@@ -1636,3 +1636,28 @@ body.drawer-open { overflow: hidden; }
 
 /* Intro: more room above the top line and below the bottom line around 漢字 and its names */
 #detail .intro .char-names { margin: 18px 0 30px; }
+
+/* First-visit guide: the page dims except the part each step talks about, with a black note beside it */
+.guide-catch { position: fixed; inset: 0; z-index: 200; }
+.guide-hole { position: fixed; z-index: 201; border-radius: 12px; pointer-events: none; outline: 2px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease; }
+.guide-tip { position: fixed; z-index: 202; width: min(330px, calc(100vw - 24px)); padding: 18px 20px 14px; border-radius: 12px;
+  background: #000; color: #fff; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); transition: left 0.3s ease, top 0.3s ease; }
+.guide-tip::before { content: ""; position: absolute; width: 14px; height: 14px; background: #000; transform: rotate(45deg); }
+.guide-tip.below::before { top: -6px; left: var(--arrow, 24px); }
+.guide-tip.above::before { bottom: -6px; left: var(--arrow, 24px); }
+.guide-tip.left::before { right: -6px; top: var(--arrow, 24px); }
+.guide-count { margin: 0 0 6px; font-size: 12px; opacity: 0.6; }
+.guide-tip h2 { margin: 0 0 6px; font-size: 18px; font-weight: 600; line-height: 1.25; }
+.guide-text { margin: 0 0 14px; font-size: 14px; line-height: 1.5; opacity: 0.85; }
+.guide-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.guide-btns { display: flex; align-items: center; gap: 4px; }
+.guide-tip button { height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: rgba(255, 255, 255, 0.7);
+  font-size: 13px; white-space: nowrap; }
+.guide-tip button:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.guide-tip .guide-skip { padding-left: 0; }
+.guide-tip .guide-skip:hover { background: none; text-decoration: underline; }
+.guide-tip .guide-next, .guide-tip .guide-next:hover { padding: 0 16px; background: #fff; color: #000; font-weight: 600; }
+.guide-tip button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.guide-tip button[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .guide-hole, .guide-tip { transition: none; } }

@@ -2391,6 +2391,115 @@ renderIntro();
 if (state.view === "map") refresh(); else updateStatus();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
 
+// ---------- First-visit guide ----------
+// A short guided tour the first time the site opens in a tab (sessionStorage lasts as long as the tab, so a reload
+// doesn't bring it back, but a new tab does). Each step dims the page except the part it talks about, with a note
+// beside it. Not shown when the tab opens straight onto a word page or About.
+const GUIDE_KEY = "hanja-roots-guide-seen";
+const GUIDE_STEPS = [
+  { title: "Every card is a Korean word", text: "Each one is built from Chinese characters. Click a card to see it in Chinese, Japanese, and Vietnamese.",
+    target: () => document.querySelector("#list .card") },
+  { title: "Hear it and trace its roots", text: "Here's a word up close. Press a speaker to listen, or “Trace its roots” to open the word character by character.",
+    // shows the first card's word in the panel (not on phones, or when the panel is folded away)
+    skip: () => window.innerWidth <= 640 || panelCollapsed(),
+    enter: g => { const c = document.querySelector("#list .card"); if (c && state.selected < 0) { select(+c.dataset.index); g.selectedByGuide = true; } },
+    target: () => $("detail") },
+  { title: "Narrow it down", text: "Pick languages to see only the words they share, or sort the list by any language.",
+    target: () => document.querySelector(".filter-row") },
+  { title: "Jump through the alphabet", text: "Click a letter to skip straight to it. The letters follow whichever language you sort by.",
+    skip: () => $("az").hidden, target: () => $("az") },
+  { title: "See the whole picture", text: "Switch to the summary to see every word at once, grouped by the languages that share it.",
+    target: () => document.querySelector(".view-switch") }
+];
+function showGuide() {
+  const steps = GUIDE_STEPS.filter(st => !(st.skip && st.skip()));
+  const g = { selectedByGuide: false };
+  let k = 0;
+  const catcher = el("div", "guide-catch");   // keeps clicks off the page while the tour runs
+  const hole = el("div", "guide-hole");
+  const box = el("div", "guide-tip");
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-modal", "true");
+  box.setAttribute("aria-labelledby", "guide-title");
+  const count = el("p", "guide-count");
+  const title = el("h2"); title.id = "guide-title";
+  const text = el("p", "guide-text");
+  const skip = el("button", "guide-skip", "Skip tour"); skip.type = "button";
+  const prev = el("button", "guide-prev", "Back"); prev.type = "button";
+  const next = el("button", "guide-next", "Next"); next.type = "button";
+  const btns = el("div", "guide-btns"); btns.append(prev, next);
+  const row = el("div", "guide-row"); row.append(skip, btns);
+  box.append(count, title, text, row);
+  const was = document.activeElement;
+  // put the bright hole over the step's target and the note beside it: below, else above, else to its left
+  const place = () => {
+    const t = steps[k].target();
+    if (!t) return;
+    const r = t.getBoundingClientRect(), pad = 6, gap = 16, W = window.innerWidth, H = window.innerHeight;
+    Object.assign(hole.style, { left: (r.left - pad) + "px", top: (r.top - pad) + "px", width: (r.width + pad * 2) + "px", height: (r.height + pad * 2) + "px" });
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    let side, x, y;
+    if (r.bottom + pad + gap + bh < H - 8) { side = "below"; y = r.bottom + pad + gap; x = r.left; }
+    else if (r.top - pad - gap - bh > 8) { side = "above"; y = r.top - pad - gap - bh; x = r.left; }
+    else { side = "left"; x = r.left - pad - gap - bw; y = r.top + 40; }
+    x = Math.max(12, Math.min(x, W - bw - 12));
+    y = Math.max(12, Math.min(y, H - bh - 12));
+    box.className = "guide-tip " + side;
+    box.style.left = x + "px"; box.style.top = y + "px";
+    // the little pointer lines up with the target
+    if (side === "left") box.style.setProperty("--arrow", Math.min(bh - 24, Math.max(16, r.top + 40 - y)) + "px");
+    else box.style.setProperty("--arrow", Math.min(bw - 30, Math.max(16, r.left + Math.min(r.width / 2, 40) - x)) + "px");
+  };
+  const show = () => {
+    const st = steps[k];
+    // the word the tour opened only stays up for its own step
+    if (!st.enter && g.selectedByGuide) { g.selectedByGuide = false; deselect(); }
+    if (st.enter) st.enter(g);
+    count.textContent = (k + 1) + " of " + steps.length;
+    title.textContent = st.title;
+    text.textContent = st.text;
+    prev.hidden = k === 0;
+    next.textContent = k === steps.length - 1 ? "Start exploring" : "Next";
+    const t = st.target();
+    if (t && t.scrollIntoView) t.scrollIntoView({ block: "nearest" });
+    requestAnimationFrame(place);
+    next.focus();
+  };
+  const close = () => {
+    document.removeEventListener("keydown", onKey, true);
+    window.removeEventListener("resize", place);
+    window.removeEventListener("scroll", place, true);
+    catcher.remove(); hole.remove(); box.remove();
+    if (g.selectedByGuide) deselect();   // put the panel back to the intro
+    if (was && was.focus) was.focus();
+  };
+  const onKey = e => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); next.click(); }
+    else if (e.key === "ArrowLeft" && k > 0) { e.preventDefault(); prev.click(); }
+    else if (e.key === "Tab") {   // keep the keyboard inside the note
+      const f = [...box.querySelectorAll("button:not([hidden])")];
+      const i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+    }
+  };
+  next.addEventListener("click", () => { if (k < steps.length - 1) { k++; show(); } else close(); });
+  prev.addEventListener("click", () => { if (k > 0) { k--; show(); } });
+  skip.addEventListener("click", close);
+  document.addEventListener("keydown", onKey, true);
+  window.addEventListener("resize", place);
+  window.addEventListener("scroll", place, true);
+  document.body.append(catcher, hole, box);
+  show();
+}
+try {
+  if (!sessionStorage.getItem(GUIDE_KEY) && wordFromHash() < 0 && location.hash !== "#about") {
+    sessionStorage.setItem(GUIDE_KEY, "1");
+    setTimeout(showGuide, 350);   // once the list has drawn
+  }
+} catch (e) {}
+
 // ---------- No orphans ----------
 // Keeps the last two words of every paragraph, list item, and heading together, so a line never ends with one
 // word on its own. CSS text-wrap: pretty does this in newer browsers; this covers the rest, including text
