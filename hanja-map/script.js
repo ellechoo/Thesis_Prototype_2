@@ -221,6 +221,7 @@ function setView(view) {
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   $("map-wrap").hidden = view !== "map";
   $("list-wrap").hidden = view !== "list";
+  $("timeline").hidden = view !== "timeline";
   if (view !== "list") $("az").hidden = true;
   refresh();
 }
@@ -228,7 +229,143 @@ function setView(view) {
 function refresh() {
   updateStatus();
   if (state.view === "map") relayoutMap();
+  else if (state.view === "timeline") renderTimeline();
   else renderList();
+}
+
+// ---------- Timeline: where words came from ----------
+// The words whose origin Wiktionary documents (timeline.js), in five eras down a line. Each era shows a handful of
+// words, with the rest a click away; the filters above apply. Clicking a word shows its story in the side panel.
+let TL = null;
+const TL_SHOWN = 16;
+const tlOpen = new Set();   // eras showing all their words
+function timelineData() {
+  if (TL) return TL;
+  const index = new Map(WORDS.map((w, i) => [w[HANGUL] + "|" + w[HANJA], i]));
+  TL = { byWord: new Map(), eras: [] };
+  (typeof TIMELINE_ERAS === "undefined" ? [] : TIMELINE_ERAS).forEach(era => {
+    const items = [];
+    era.words.split(";").forEach(entry => {
+      const [hg, hj, src, page, year] = entry.split(",");
+      const i = index.get(hg + "|" + hj);
+      if (i === undefined || TL.byWord.has(i)) return;
+      const item = { i, era, src, page, year: year ? +year : 0 };
+      TL.byWord.set(i, item);
+      items.push(item);
+    });
+    if (era.id === "written") items.sort((a, b) => a.year - b.year);
+    TL.eras.push({ era, items });
+  });
+  return TL;
+}
+function renderTimeline() {
+  const box = $("timeline");
+  box.innerHTML = "";
+  const data = timelineData();
+  const shown = new Set(visibleWords());
+  let total = 0;
+  const line = el("div", "tl");
+  data.eras.forEach(({ era, items }) => {
+    const list = items.filter(it => shown.has(it.i));
+    total += list.length;
+    const sec = el("section", "tl-era");
+    sec.append(el("div", "tl-yr", era.years), el("h3", "", era.title), el("p", "tl-blurb", era.blurb));
+    // the history behind the era, with where it comes from
+    if (era.history) {
+      const hist = el("div", "tl-history");
+      era.history.forEach(t => hist.appendChild(el("p", "", t)));
+      if (era.sources && era.sources.length) {
+        const src = el("p", "tl-sources");
+        src.appendChild(document.createTextNode("Sources: "));
+        era.sources.forEach(([label, url], k) => {
+          if (k) src.appendChild(document.createTextNode(" · "));
+          src.appendChild(makeLink(url, label + " ↗"));
+        });
+        hist.appendChild(src);
+      }
+      sec.appendChild(hist);
+    }
+    const words = el("div", "tl-words");
+    if (!list.length) words.appendChild(el("span", "tl-none", "No words here with these filters."));
+    const all = tlOpen.has(era.id);
+    list.slice(0, all ? list.length : TL_SHOWN).forEach(it => {
+      const w = WORDS[it.i];
+      const b = el("button", "tl-w");
+      b.type = "button";
+      b.dataset.index = it.i;
+      b.setAttribute("aria-pressed", String(state.selected === it.i));
+      const ko = el("span", "", w[HANGUL]); ko.lang = "ko";
+      b.append(ko, el("small", "", meaningOf(it.i).short));
+      if (era.id === "written" && it.year) b.appendChild(el("small", "tl-year", String(it.year)));
+      b.title = w[HANGUL] + " " + w[HANJA] + " · " + meaningText(meaningOf(it.i));
+      b.addEventListener("click", () => state.selected === it.i ? deselect() : select(it.i));
+      b.addEventListener("mouseenter", () => hoverPreview(it.i));
+      b.addEventListener("mouseleave", () => hoverPreview(-1));
+      b.addEventListener("dblclick", () => openWord(it.i));
+      words.appendChild(b);
+    });
+    if (list.length > TL_SHOWN) {
+      const more = el("button", "tl-w tl-more", all ? "Show fewer" : "+ " + (list.length - TL_SHOWN).toLocaleString() + " more");
+      more.type = "button";
+      more.addEventListener("click", () => { all ? tlOpen.delete(era.id) : tlOpen.add(era.id); renderTimeline(); });
+      words.appendChild(more);
+    }
+    sec.appendChild(words);
+    line.appendChild(sec);
+    // events that happened after this era, as small marks on the line
+    (typeof TIMELINE_EVENTS === "undefined" ? [] : TIMELINE_EVENTS).filter(ev => ev.after === era.id).forEach(ev => {
+      const e = el("p", "tl-event");
+      e.append(el("span", "tl-event-yr", ev.year), document.createTextNode(ev.text + " "));
+      if (ev.url) e.appendChild(makeLink(ev.url, "↗"));
+      line.appendChild(e);
+    });
+  });
+  box.append(el("p", "tl-note", total.toLocaleString() + " words with a documented origin, by the era they came from. " +
+    "Click one to see its story."), line);
+}
+// The origin story for the side panel: the etymology from the word's Wiktionary entry, fetched when it's first shown
+const TL_LANG = { k: "Korean", z: "Chinese", j: "Japanese" };
+const originCache = {};
+function originSection(i) {
+  const it = TL && TL.byWord.get(i) || (timelineData(), TL.byWord.get(i));
+  if (!it) return null;
+  const w = WORDS[i];
+  const page = it.page || (it.src === "k" ? w[HANGUL] : it.src === "z" ? (w[ZH_FORM] || w[HANJA]) : w[JP_FORM]);
+  const sec = el("section", "origin");
+  sec.append(el("h3", "", "Where it came from"), el("p", "origin-era", it.era.title + " · " + it.era.years));
+  const note = el("p", "origin-note", "Loading the story from Wiktionary…");
+  sec.appendChild(note);
+  const src = el("p", "origin-src");
+  src.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(page) + "#" + TL_LANG[it.src],
+    "Wiktionary, " + TL_LANG[it.src] + " entry " + page + " ↗"));
+  sec.appendChild(src);
+  const key = page + "|" + it.src;
+  const show = text => { note.textContent = text || "Wiktionary has the story, but it couldn't be shown here."; };
+  if (key in originCache) show(originCache[key]);
+  else fetchOrigin(page, TL_LANG[it.src], [w[HANJA], w[JP_FORM], w[ZH_FORM]]).then(t => { originCache[key] = t; show(t); })
+    .catch(() => { note.textContent = "Couldn't reach Wiktionary just now."; });
+  return sec;
+}
+async function fetchOrigin(page, lang, forms) {
+  const url = "https://en.wiktionary.org/w/api.php?action=parse&format=json&formatversion=2&prop=text&redirects=1&origin=*&page=" +
+    encodeURIComponent(page);
+  const json = await fetch(url).then(r => r.json());
+  if (json.error) return "";
+  const doc = new DOMParser().parseFromString(json.parse.text, "text/html");
+  doc.querySelectorAll("style, sup.reference, .mw-editsection, rt, rp").forEach(n => n.remove());
+  const root = doc.querySelector(".mw-parser-output") || doc.body;
+  let inLang = false, inEty = false;
+  const paras = [];
+  for (const b of root.children) {
+    const h = b.matches(".mw-heading") ? b.querySelector("h2, h3, h4, h5") : /^H[2-5]$/.test(b.tagName) ? b : null;
+    if (h) {
+      if (h.tagName === "H2") { if (inLang) break; inLang = h.id === lang; inEty = false; }
+      else if (inLang) inEty = /^Etymology/.test(h.id);
+      continue;
+    }
+    if (inLang && inEty && b.tagName === "P" && b.textContent.trim()) paras.push(b.textContent.trim().replace(/\s+/g, " "));
+  }
+  return paras.find(p => forms.some(f => f && p.includes(f))) || paras[0] || "";
 }
 
 // ---------- Map: every word as a dot ----------
@@ -1193,9 +1330,8 @@ function select(i) {
   renderRail();
 
   // Keep the list and map in step with the selection
-  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
-  const c = document.querySelector('.card[data-index="' + i + '"]');
-  if (c) { c.setAttribute("aria-pressed", "true"); }
+  document.querySelectorAll(".card[aria-pressed='true'], .tl-w[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  document.querySelectorAll('.card[data-index="' + i + '"], .tl-w[data-index="' + i + '"]').forEach(c => c.setAttribute("aria-pressed", "true"));
   if (state.view === "map") redrawMap();
 }
 
@@ -1259,6 +1395,10 @@ function renderPanel(i, preview) {
   open.append(document.createTextNode(" →"));
   open.addEventListener("click", () => openWord(i));
   head.appendChild(open);
+
+  // where the word came from, when Wiktionary documents it (the timeline's words)
+  const origin = originSection(i);
+  if (origin) panel.appendChild(origin);
 }
 
 // One card per language, all built the same way: used by the side panel and the word page. Each whole card is a play
@@ -1510,7 +1650,7 @@ function appendLangSections(box, i) {
 function deselect() {
   state.selected = -1;
   clearTimeout(previewTimer); previewShown = -1; $("detail").classList.remove("previewing");
-  document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
+  document.querySelectorAll(".card[aria-pressed='true'], .tl-w[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
   renderIntro();
   renderRail();
   if (state.view === "map") redrawMap();
@@ -2408,7 +2548,7 @@ const GUIDE_STEPS = [
     target: () => document.querySelector(".filter-row") },
   { title: "Jump through the alphabet", text: "Click a letter to skip straight to it. The letters follow whichever language you sort by.",
     skip: () => $("az").hidden, target: () => $("az") },
-  { title: "See the whole picture", text: "Switch to the summary to see every word at once, grouped by the languages that share it.",
+  { title: "See the whole picture", text: "Switch views here: the summary shows every word at once, and the timeline shows where words came from.",
     target: () => document.querySelector(".view-switch") }
 ];
 function showGuide() {

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LINE+Seed+JP:wght@400;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261120l">
+  <link rel="stylesheet" href="style.css?v=20261120q">
 </head>
 <body>
 
@@ -38,6 +38,9 @@
         </button>
         <button type="button" data-view="map" aria-pressed="false" aria-label="Overview" title="Overview">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="5" r="1.7"/><circle cx="9.5" cy="5" r="1.7"/><circle cx="4.5" cy="12" r="1.7"/><circle cx="9.5" cy="12" r="1.7"/><circle cx="14.5" cy="12" r="1.7"/><circle cx="4.5" cy="19" r="1.7"/><circle cx="9.5" cy="19" r="1.7"/><circle cx="14.5" cy="19" r="1.7"/><circle cx="19.5" cy="19" r="1.7"/></svg>
+        </button>
+        <button type="button" data-view="timeline" aria-pressed="false" aria-label="Timeline" title="Timeline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12M6 21h12"/><path d="M7 3c0 4.5 5 6 5 9s-5 4.5-5 9M17 3c0 4.5-5 6-5 9s5 4.5 5 9"/><path d="M9.5 19.5h5L12 16.5z" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
     </header>
@@ -78,6 +81,7 @@
         <p id="list-end"></p>
       </div>
       <nav id="az" aria-label="Jump to a letter" hidden></nav>
+      <div id="timeline" hidden></div>
     </section>
     </div>
 
@@ -255,6 +259,9 @@
                   <tr><td>Recordings</td><td><a href="https://lingualibre.org" target="_blank" rel="noopener">Lingua Libre</a> on
                       <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a>, credited to each speaker</td>
                       <td>Each its own, usually CC BY-SA 4.0</td></tr>
+                                  <tr><td>Word origins (timeline)</td><td><a href="https://en.wiktionary.org/" target="_blank" rel="noopener">Wiktionary</a>'s
+                      etymology notes, via <a href="https://kaikki.org/dictionary/" target="_blank" rel="noopener">kaikki.org</a>; sorted into eras
+                      automatically, so a few may be placed wrong</td><td>CC BY-SA 4.0</td></tr>
                 </tbody>
               </table>
               <p class="about-fineprint">Meanings are shortened. Matching uses whole words written with the same characters.</p>
@@ -264,12 +271,13 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261120l"></script>
-  <script src="characters.js?v=20261120l"></script>
-  <script src="romanize.js?v=20261120l"></script>
-  <script src="recordings.js?v=20261120l"></script>
-  <script src="speech.js?v=20261120l"></script>
-  <script src="fonts.js?v=20261120l"></script>
-  <script src="script.js?v=20261120l"></script>
+  <script src="words.js?v=20261120q"></script>
+  <script src="characters.js?v=20261120q"></script>
+  <script src="romanize.js?v=20261120q"></script>
+  <script src="recordings.js?v=20261120q"></script>
+  <script src="speech.js?v=20261120q"></script>
+  <script src="timeline.js?v=20261120q"></script>
+  <script src="fonts.js?v=20261120q"></script>
+  <script src="script.js?v=20261120q"></script>
 </body>
 </html>
