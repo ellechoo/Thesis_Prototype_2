@@ -1438,3 +1438,148 @@ body.drawer-open { overflow: hidden; }
   .cd-bar, .cd-body, .cd-foot { padding-left: 18px; padding-right: 18px; }
   .char-chip { margin: 6px 0 0; }
 }
+
+/* ---------- Word page: one colour-blocked table (a column per language, a row per character) ---------- */
+.wa-section { margin-top: 56px; }
+.wa { display: grid; grid-template-columns: 150px repeat(4, minmax(0, 1fr)); }
+.wa-c { min-width: 0; padding: 18px 20px; color: #fff; }
+.wa-k { background: #000; } .wa-z { background: var(--zh); } .wa-j { background: var(--ja); } .wa-v { background: var(--vi); }
+.wa-c.off { background: #f1ede6; color: #8a8478; }
+.wa-z.off { background: #f6e6e2; } .wa-j.off { background: #e5e9f1; } .wa-v.off { background: #e4eee9; }
+.wa-head { padding-bottom: 4px; }
+.wa-head.wa-k { border-top-left-radius: 12px; } .wa-head.wa-v { border-top-right-radius: 12px; }
+.wa-row.wa-last.wa-k { border-bottom-left-radius: 12px; } .wa-row.wa-last.wa-v { border-bottom-right-radius: 12px; }
+.wa-lab { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.wa-word { padding-top: 6px; padding-bottom: 20px; }
+.wa-written { font-size: 36px; line-height: 1.2; }
+.wa-read { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 6px; font-size: 16px; font-style: italic; }
+.wa-read small { font-style: normal; font-size: 12px; opacity: 0.75; }
+.wa-c .wl-play { color: inherit; }
+.wa-c .wl-play:hover { background: rgba(255, 255, 255, 0.16); }
+.wa-mean { margin: 8px 0 0; font-size: 13.5px; line-height: 1.4; opacity: 0.85;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.wa-c .guess-mark { color: inherit; opacity: 0.7; }
+.wa-none { margin: 10px 0 0; font-size: 13px; }
+.wa-c .vi-check { margin-top: 8px; font-size: 12px; opacity: 0.85; }
+.wa-c .vi-check a { color: inherit; }
+.wa-row { border-top: 1px solid rgba(255, 255, 255, 0.22); }
+.wa-c.off.wa-row { border-top-color: rgba(0, 0, 0, 0.06); }
+.wa-r { font-size: 20px; }
+.wa-sub { margin-top: 2px; font-size: 12px; opacity: 0.75; }
+/* the characters, in a white column on the left */
+.wa-g { min-width: 0; padding: 16px 16px 16px 0; }
+.wa-char { border-top: 1px solid #e2ddd5; }
+.wa-big { display: block; font-size: 44px; line-height: 1; }
+.wa-cmean { margin: 6px 0 0; font-size: 14px; line-height: 1.3; }
+.wa-tang { margin: 6px 0 0; font-size: 12px; color: #6a645a; }
+.wa-tang b { font-weight: 600; color: #000; }
+.wa-tang .tang-term { position: relative; }
+.wa-all { display: block; margin-top: 2px; padding: 0; border: 0; background: none; font-size: 12px; color: #6a645a; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; }
+.wa-all:hover { background: none; color: #000; }
+.wa-section .voices { margin-top: 12px; }
+/* narrower screens: the table scrolls sideways rather than squeezing its columns */
+@media (max-width: 900px) {
+  .wa-section { overflow-x: auto; margin-left: -16px; margin-right: -16px; padding: 0 16px; }
+  .wa { min-width: 760px; grid-template-columns: 110px repeat(4, minmax(150px, 1fr)); }
+  .wa-written { font-size: 28px; }
+}
+
+.wa-c .speaker { stroke: currentColor; }
+.wa-c .wl-play.is-playing .speaker .cone { fill: currentColor; }
+.wa-c .vi-check, .wa-c .vi-check * { color: inherit !important; }
+
+/* ---------- Language labels, everywhere: the language's name in normal case, bold, a little larger. Chinese's two
+   spoken forms (Mandarin, Cantonese) aren't headings of their own; each is a small note after its reading. ---------- */
+.lang-label, .wa-lab, .about-example small, #detail .char-name-lang {
+  font-size: 15px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+#detail .char-name-lang { font-size: 13px; }
+.about-example small { font-size: 14px; }
+.variety, .wa-read small { margin-left: 8px; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0; text-transform: none; opacity: 0.75; }
+.wa-read small + small { margin-left: 0; }
+
+/* ---------- Side panel: each language a rounded tile in its colour, white text ---------- */
+.lang-card[data-lang="ko"] { --bg: #000; } .lang-card[data-lang="zh"], .lang-card[data-lang="yue"] { --bg: var(--zh); }
+.lang-card[data-lang="ja"] { --bg: var(--ja); } .lang-card[data-lang="vi"] { --bg: var(--vi); }
+#detail .lang-card:not(.missing) { margin: 0 26px 8px; border: 0; border-radius: 10px; background: var(--bg); color: #fff; }
+#detail .lang-card:not(.missing) .lang-label, #detail .lang-card:not(.missing) .lang-reading, #detail .lang-card:not(.missing) .lang-def,
+#detail .lang-card:not(.missing) .lang-status, #detail .lang-card:not(.missing) .lang-alt { color: #fff; }
+#detail .lang-card:not(.missing) .lang-alt, #detail .lang-card:not(.missing) .lang-status { opacity: 0.7; }
+#detail .lang-card:not(.missing) .lang-status.error { opacity: 1; }
+#detail .lang-card:not(.missing) .speaker { stroke: #fff; }
+#detail .lang-card.is-playing .speaker .cone, #detail .dual-row.is-playing .speaker .cone { fill: #fff; }
+#detail .lang-card:not(.missing):hover, #detail .lang-card.is-playing { background: var(--bg); filter: brightness(1.1); }
+#detail .lang-card.dual:hover { filter: none; }
+#detail .dual-row:hover, #detail .dual-row.is-playing { background: rgba(255, 255, 255, 0.1); }
+#detail .dual-row + .dual-row { border-top-color: rgba(255, 255, 255, 0.25); }
+#detail .lang-card:focus-visible, #detail .dual-row:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+#detail .lang-card .guess-mark { color: inherit; opacity: 0.7; }
+#detail .lang-card.missing { margin: 0 26px 8px; border: 1px dashed #cbc2b1; border-radius: 10px; background: none; }
+@media (max-width: 1100px) { #detail .lang-card:not(.missing), #detail .lang-card.missing { margin-left: 16px; margin-right: 16px; } }
+
+/* on the coloured tiles and table the language's name is white (its colour is the tile) */
+#detail .lang-card:not(.missing) .lang-label.ink-z, #detail .lang-card:not(.missing) .lang-label.ink-j, #detail .lang-card:not(.missing) .lang-label.ink-v,
+.wa-c .ink-z, .wa-c .ink-j, .wa-c .ink-v { color: #fff !important; }
+
+/* The panel's fold button: a tall black pill on the panel's edge, white arrow (overrides the round outline above) */
+#panel-toggle { width: 24px; height: 44px; border-radius: 999px; border-color: #000; background: #000; color: #fff; }
+#panel-toggle:hover { background: #333; color: #fff; }
+#panel-toggle:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+#panel-toggle { right: calc(420px - 12px); }
+@media (min-width: 641px) { body.panel-collapsed #panel-toggle { right: calc(72px - 12px); } }
+@media (min-width: 641px) and (max-width: 900px) { body:not(.panel-collapsed) #panel-toggle { right: calc(300px - 12px); } }
+
+/* ---------- Word page: the sharing languages' dots, top right, with a small card on hover ---------- */
+#word-content { position: relative; }
+.share-corner { position: absolute; top: 40px; right: 30px; z-index: 5; }
+.share-dots { display: flex; gap: 6px; padding: 8px 10px; border: 0; border-radius: 999px; background: none; cursor: pointer; }
+.share-dots:hover, .share-corner.open .share-dots, .share-dots:focus-visible { background: var(--hover); outline: none; }
+.sd { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #d6cdbd; }
+.sd.on.sd-k { background: #000; box-shadow: none; } .sd.on.sd-z { background: var(--zh); box-shadow: none; }
+.sd.on.sd-j { background: var(--ja); box-shadow: none; } .sd.on.sd-v { background: var(--vi); box-shadow: none; }
+.share-pop { position: absolute; top: calc(100% + 6px); right: 0; width: 260px; padding: 14px 16px; border: 1px solid #000; border-radius: 10px;
+  background: var(--card); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s; }
+.share-corner:hover .share-pop, .share-corner.open .share-pop, .share-corner:focus-within .share-pop { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.share-pop-title { margin: 0; font-size: 15px; font-weight: 600; }
+.share-pop-sub { margin: 4px 0 10px; font-size: 13px; color: #5d574d; line-height: 1.4; }
+.share-pop-go { padding: 0; border: 0; background: none; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.share-pop-go:hover { background: none; text-decoration-thickness: 2px; }
+@media (prefers-reduced-motion: reduce) { .share-pop { transition: none; } }
+@media (max-width: 640px) { .share-corner { top: 18px; right: 12px; } .sd { width: 12px; height: 12px; } }
+
+/* Word page: two cards under the table, lined up with the coloured columns */
+.wa-notes { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px; margin: 28px 0 0 150px; }
+.wa-note-card { border-radius: 10px; background: #f4f1ec; padding: 20px 22px; }
+.wa-note-card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+.wa-why-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; margin-top: 8px; font-size: 13.5px; line-height: 1.45; }
+.wa-why-row b { font-size: 24px; font-weight: 400; line-height: 1; }
+.wa-src p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.5; color: #333; }
+.wa-src .wa-src-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
+.wa-src-links a { color: #000; }
+.wa-notes > .wa-src:first-child { grid-column: 1 / -1; max-width: 640px; }
+@media (max-width: 900px) {
+  .wa-notes { grid-template-columns: minmax(0, 1fr); margin-left: 0; position: sticky; left: 0; max-width: calc(100vw - 32px); }
+}
+
+/* List: once a word is clicked, the other cards fade (hovering one brings it back) */
+#list .card { transition: opacity 0.15s ease; }
+#list:has(.card[aria-pressed="true"]) .card:not([aria-pressed="true"]) { opacity: 0.35; }
+#list:has(.card[aria-pressed="true"]) .card:not([aria-pressed="true"]):hover,
+#list:has(.card[aria-pressed="true"]) .card:not([aria-pressed="true"]):focus-visible { opacity: 1; }
+
+/* The intro in the side panel: the whole panel turns black, with white text */
+#detail:has(> .intro) { background: #000; color: #fff; }
+#detail .intro { color: #fff; }
+#detail .intro .char-names { border-color: rgba(255, 255, 255, 0.35); }
+#detail .intro .char-name-lang, #detail .intro .ex-lang,
+#detail .intro .ink-z, #detail .intro .ink-j, #detail .intro .ink-v { color: rgba(255, 255, 255, 0.7) !important; }
+#detail .intro .intro-example, #detail .intro .intro-example:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+#detail .intro .intro-example:hover { background: rgba(255, 255, 255, 0.16); }
+#detail .intro .ex-sub { color: rgba(255, 255, 255, 0.7); }
+#detail .intro .intro-why { border-top-color: rgba(255, 255, 255, 0.35); }
+#detail .intro .intro-why p { color: rgba(255, 255, 255, 0.75); }
+#detail .intro a, #detail .intro .intro-more { color: #fff; }
+
+/* The folded panel strip, while the intro would show: black, like the intro panel */
+#rail.is-intro, #rail.is-intro:hover { background: #000; }

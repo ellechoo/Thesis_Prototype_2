@@ -612,7 +612,11 @@ function draw() {
     lastEnd = x + dotsW + ctx.measureText(text).width;
   });
 
-  const rel = mapHover >= 0 ? mapRel : null;
+  // the word in focus: the hovered dot, or else the selected word (a click keeps the hover look: the other dots fade
+  // and lines run to every word sharing one of its characters)
+  const selOn = state.selected >= 0 && layout.X[state.selected] === layout.X[state.selected];
+  const focus = mapHover >= 0 ? mapHover : selOn ? state.selected : -1;
+  const rel = mapHover >= 0 ? mapRel : focus >= 0 ? mapSelRel(focus) : null;
   const tiles = false;   // the dots stay dots at any size (the word tiles are switched off)
   const onScreen = (x, y, m) => x > -m && y > -m && x < W + m && y < H + m;
 
@@ -620,7 +624,7 @@ function draw() {
     // dots, batched by colour: faded ones first, then the rest
     const r = Math.max(0.75, s * 0.36), faint = new Map(), strong = new Map();
     for (let i = 0; i < n; i++) {
-      if (rel && (rel.has(i) || i === mapHover)) { if (i === mapHover) { const col = mapColor(i); let b = strong.get(col); if (!b) strong.set(col, b = []); b.push(i); } continue; }
+      if (rel && (rel.has(i) || i === focus)) { if (i === focus) { const col = mapColor(i); let b = strong.get(col); if (!b) strong.set(col, b = []); b.push(i); } continue; }
       const x = sx(i), y = sy(i);
       if (!onScreen(x, y, 5)) continue;
       const m = !rel && mapStrong(i) ? strong : faint, col = mapColor(i);
@@ -639,13 +643,13 @@ function draw() {
     ctx.globalAlpha = 1;
     if (rel) {
       // lines from the hovered word to every word that shares one of its characters
-      const hx = sx(mapHover), hy = sy(mapHover);
+      const hx = sx(focus), hy = sy(focus);
       ctx.strokeStyle = "rgba(0,0,0,0.22)"; ctx.lineWidth = 0.7; ctx.beginPath();
       let k = 0;
       for (const j of rel) { if (k++ > 1200) break; ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
       ctx.stroke();
-      const rr = Math.max(1.6, r * 1.4);
-      for (const j of rel) { ctx.fillStyle = mapColor(j); ctx.beginPath(); ctx.arc(sx(j), sy(j), rr, 0, Math.PI * 2); ctx.fill(); }
+      // the related words drawn on top at full strength, the same size as every other dot
+      for (const j of rel) { ctx.fillStyle = mapColor(j); ctx.beginPath(); ctx.arc(sx(j), sy(j), r, 0, Math.PI * 2); ctx.fill(); }
     }
   } else {
     // zoomed in: each dot becomes a tile with its word
@@ -655,7 +659,7 @@ function draw() {
     for (let i = 0; i < n; i++) {
       const x = sx(i), y = sy(i);
       if (!onScreen(x, y, s)) continue;
-      ctx.globalAlpha = rel ? (rel.has(i) || i === mapHover ? 1 : 0.15) : mapStrong(i) ? 1 : 0.18;
+      ctx.globalAlpha = rel ? (rel.has(i) || i === focus ? 1 : 0.15) : mapStrong(i) ? 1 : 0.18;
       ctx.fillStyle = mapColor(i);
       roundRect(x - size / 2, y - size / 2, size, size, Math.min(6, size * 0.12)); ctx.fill();
       ctx.fillStyle = "#fff";
@@ -664,7 +668,7 @@ function draw() {
     }
     ctx.globalAlpha = 1;
     if (rel) {
-      const hx = sx(mapHover), hy = sy(mapHover);
+      const hx = sx(focus), hy = sy(focus);
       ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1; ctx.beginPath();
       for (const j of rel) { ctx.moveTo(hx, hy); ctx.lineTo(sx(j), sy(j)); }
       ctx.stroke();
@@ -697,6 +701,14 @@ function nearestWord(mx, my) {
         if (d < bestD) { bestD = d; best = i; }
       });
   return best;
+}
+
+// the related words for the selected word, worked out once per word and group
+let mapSelRelCache = { key: "", set: null };
+function mapSelRel(i) {
+  const key = i + "|" + state.group;
+  if (mapSelRelCache.key !== key) mapSelRelCache = { key, set: new Set(Array.from(mapRelatives(i)).filter(j => layout.X[j] === layout.X[j])) };
+  return mapSelRelCache.set;
 }
 
 function mapSetHover(i) {
@@ -801,8 +813,8 @@ const mapPointerEnd = e => {
   if (mapPointers.size < 2) mapPinch = null;
   if (tap && e.type === "pointerup") {
     const [mx, my] = pointer(e), i = nearestWord(mx, my);
-    if (i >= 0) select(i);
-    else if (state.selected >= 0) deselect();   // a click off the dots clears the selected word
+    if (i >= 0 && i !== state.selected) select(i);
+    else if (state.selected >= 0) deselect();   // a second click on the selected dot unselects it   // a click off the dots clears the selected word
   }
   mapDrag = null;
   canvas.classList.remove("dragging");
@@ -890,7 +902,7 @@ function card(i) {
   ["z", "j", "v"].forEach(c => bar.appendChild(el("i", w[CAT].includes(c) ? "on lang-" + c : "")));
   b.append(en, ko, roman, bar);
   b.title = "Double-click to open this word's page";
-  b.addEventListener("click", () => select(i));
+  b.addEventListener("click", () => state.selected === i ? deselect() : select(i));   // a second click unselects it
   b.addEventListener("mouseenter", () => hoverPreview(i));
   b.addEventListener("mouseleave", () => hoverPreview(-1));
   b.addEventListener("dblclick", () => openWord(i));
@@ -1065,13 +1077,6 @@ function renderIntro() {
     box.appendChild(ex);
   }
 
-  // Why the site starts from Korean
-  const why = el("div", "intro-why");
-  why.appendChild(el("h3", "", "Why start from Korean?"));
-  why.appendChild(el("p", "", "It's the language this project grew out of. Every word here is a Korean word, followed outward to " +
-    "the languages that share it, and explained in English, so you don't need to read Chinese, Japanese, or Vietnamese to explore."));
-  box.appendChild(why);
-
   // (The ? button for the About page is gone for now; About is in the top bar's title menu.)
   panel.appendChild(box);
 }
@@ -1191,15 +1196,6 @@ function langCards(i) {
   return cards.concat(missing);
 }
 
-function voicesNote() {
-  const voices = el("details", "voices");
-  voices.appendChild(el("summary", "", "About the Listen buttons"));
-  voices.appendChild(el("p", "", "When a native speaker has recorded a word on Lingua Libre or Wikimedia Commons, Listen plays their " +
-    "recording. Otherwise it uses your device's built-in voice, which may sound robotic or misread a word (Japanese is read from its " +
-    "kana spelling). A grayed-out button means there's no recording and no voice for that language on this device."));
-  return voices;
-}
-
 // ---------- Side panel cards ----------
 // A language card in the side panel: the whole card plays the word in that language. It plays a native speaker's
 // recording when Wikimedia Commons has one, otherwise the device's voice. The speaker icon fills in while playing.
@@ -1311,13 +1307,14 @@ function soundCard(o) {
 // traditional one. Each row is its own play button; the meaning sits underneath, shared.
 function dualCard(o) {
   const card = el("div", "lang-card dual");
+  card.dataset.lang = "zh";
   const labelRow = el("div", "lang-label-row");
   labelRow.appendChild(inked("span", "lang-label", o.label));
   card.appendChild(labelRow);
   o.variants.forEach(v => {
     const row = el("div", "dual-row");
     const text = el("div", "dual-text");
-    text.appendChild(inked("span", "dual-name", v.name));
+    // the variety (Mandarin, Cantonese) is a small note after the reading, not a second heading under "Chinese"
     const wordEl = el("div", "lang-word", v.word);
     wordEl.lang = v.wordLang || FONT_LANG[v.lang] || "";
     text.appendChild(wordEl);
@@ -1325,11 +1322,13 @@ function dualCard(o) {
     row.appendChild(text);
     if (v.unavailable) {
       row.classList.add("unavailable");
-      text.appendChild(el("div", "lang-status", v.unavailable));
+      text.appendChild(el("div", "lang-status", v.name + ": " + v.unavailable));
       card.appendChild(row);
       return;
     }
-    if (v.reading) text.appendChild(el("div", "lang-reading", v.reading));
+    const rd = el("div", "lang-reading", v.reading || "");
+    rd.appendChild(el("span", "variety", v.name));
+    text.appendChild(rd);
     text.appendChild(status);
     row.insertAdjacentHTML("beforeend", SPEAKER_SVG);
     row.tabIndex = 0;
@@ -1422,6 +1421,16 @@ function deselect() {
 // pulling the sheet down from its top closes it.
 const sheetIsOpen = () => window.matchMedia("(max-width: 640px)").matches && $("detail").classList.contains("has-word");
 $("sheet-backdrop").addEventListener("click", () => deselect());
+// A click on empty space beside the words (in the list, around the overview's blocks, or the filter row's blank
+// stretches) clears the selected word, and the side panel goes back to the intro. Clicks on a card, a dot, or any
+// button, link, or field keep it. (The overview's dots handle their own clicks.)
+$("view").addEventListener("click", e => {
+  if (state.selected < 0 || onSubpage) return;
+  if (e.target.closest(".card, canvas, button, a, input, select, label, [role='button'], #suggestions, .mb-out, .char-chip")) return;
+  const sel = window.getSelection && window.getSelection();
+  if (sel && !sel.isCollapsed) return;
+  deselect();
+});
 document.addEventListener("keydown", e => { if (e.key === "Escape" && sheetIsOpen() && !onSubpage) deselect(); });
 (() => {
   const sheet = $("detail");
@@ -2099,7 +2108,7 @@ function renderWordPage(i) {
   page.innerHTML = "";
   document.title = w[HANGUL] + " " + w[HANJA] + " · " + meaningText(meaningOf(i)) + " · Hanja Roots";
 
-  // Heading: the word and its Hanja, its meaning, and two pills (which languages share it, and its learner level)
+  // Heading: the word and its Hanja and its meaning; which languages share it shows as dots in the top right
   const hero = el("header", "hero");
   const title = el("h1", "hero-word");
   title.id = "page-title";
@@ -2109,153 +2118,163 @@ function renderWordPage(i) {
   const meaning = meaningOf(i);
   hero.appendChild(withMark(el("p", "hero-meaning", meaning.source === "chars" ? meaning.short : meaning.full), meaning));
   if (meaning.source !== "ko") hero.appendChild(el("p", "hero-note", meaningNote(meaning)));
-  const facts = el("p", "hero-facts");
-  const group = el("button", "fact-group");
-  group.type = "button";
-  group.title = "See every word shared with these languages";
-  group.append(langDots(w[CAT], "fact-dots"), document.createTextNode(comboLabel(w[CAT])));
-  group.addEventListener("click", () => { state.group = w[CAT]; renderGroupButtons(); listScroll = 0; galleryDirty = true; backToGallery(); });
-  facts.appendChild(group);
-  if (w[LEVEL]) facts.appendChild(el("span", "fact", w[LEVEL][0].toUpperCase() + w[LEVEL].slice(1) + " word"));
-  hero.appendChild(facts);
+  // Which languages share the word: their dots in the page's top right corner. Hovering (or focusing) them shows a
+  // small card naming the group, with a link to every word in it; on touch screens a tap opens the card.
+  const seeGroup = () => { state.group = w[CAT]; renderGroupButtons(); listScroll = 0; galleryDirty = true; backToGallery(); };
+  const share = el("div", "share-corner");
+  const dotsBtn = el("button", "share-dots");
+  dotsBtn.type = "button";
+  dotsBtn.setAttribute("aria-label", comboLabel(w[CAT]) + ". Show the group");
+  dotsBtn.setAttribute("aria-expanded", "false");
+  [["k", true], ["z", w[CAT].includes("z")], ["j", w[CAT].includes("j")], ["v", w[CAT].includes("v")]].forEach(([c, on]) =>
+    dotsBtn.appendChild(el("span", "sd sd-" + c + (on ? " on" : ""))));
+  const pop = el("div", "share-pop");
+  pop.id = "share-pop";
+  dotsBtn.setAttribute("aria-controls", pop.id);
+  const inGroup = (MAP_BY_GROUP[w[CAT]] || []).length;
+  pop.append(el("p", "share-pop-title", comboLabel(w[CAT])),
+    el("p", "share-pop-sub", inGroup.toLocaleString() + " Korean word" + (inGroup === 1 ? " is" : "s are") + " shared with exactly " +
+      (w[CAT].length === 3 ? "all three languages" : w[CAT].length === 1 ? "this language" : "these languages")));
+  const go = el("button", "share-pop-go", "See them all →");
+  go.type = "button";
+  go.addEventListener("click", seeGroup);
+  pop.appendChild(go);
+  dotsBtn.addEventListener("click", () => { const open = !share.classList.contains("open"); share.classList.toggle("open", open); dotsBtn.setAttribute("aria-expanded", String(open)); });
+  share.addEventListener("mouseleave", () => { share.classList.remove("open"); dotsBtn.setAttribute("aria-expanded", "false"); });
+  share.append(dotsBtn, pop);
+  page.appendChild(share);
   page.appendChild(hero);
 
-  // The word in each language, in one row: how it's written, how it sounds (with a speaker), and what it means there
-  const langs = el("section", "word-langs wl-strip");
-  langs.setAttribute("aria-label", "In each language");
-  const strip = el("div", "wl-row");
-  const item = (label, written, writtenLang, reading, mean, play, extraClass) => {
-    const it = el("div", "wl-item" + (extraClass ? " " + extraClass : ""));
-    it.appendChild(inked("span", "wl-label", label));
-    const wr = el("span", "wl-written", written);
-    if (writtenLang) wr.lang = writtenLang;
-    it.appendChild(wr);
-    const rd = el("span", "wl-reading");
-    if (reading) rd.append(reading instanceof Node ? reading : document.createTextNode(reading));
-    if (play) rd.appendChild(playButton(label, written, play));
-    it.appendChild(rd);
-    if (mean) { const m = typeof mean === "string" ? el("span", "wl-mean", mean) : mean; m.title = m.textContent; it.appendChild(m); }
-    return it;
-  };
-  strip.appendChild(item("Korean", w[HANGUL], "ko", KO_ROMAN[i], withMark(el("span", "wl-mean", meaning.short), meaning),
-    { lang: "ko", text: w[HANGUL], forms: [w[HANGUL]] }));
-  const missing = [];
-  if (w[ZH_MEANING]) {
-    const simp = w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== zhForm(w) ? w[ZH_SIMPLIFIED] : "";
-    strip.appendChild(item("Mandarin", simp || zhForm(w), simp ? "zh-Hans" : "zh-Hant", pinyinMarks(w[ZH_PINYIN]), w[ZH_MEANING],
-      { lang: "zh", text: w[ZH_SIMPLIFIED] || zhForm(w), forms: [w[ZH_SIMPLIFIED], zhForm(w), pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] }));
-    if (w[YUE]) strip.appendChild(item("Cantonese", zhForm(w), "zh-Hant", w[YUE], w[ZH_MEANING],
-      { lang: "yue", text: zhForm(w), forms: [zhForm(w), w[YUE].replace(/ /g, "")] }));
-  } else missing.push("Chinese");
-  if (w[JP_MEANING]) {
-    const rd = el("span", "");
-    rd.append(document.createTextNode(romajiWithMacrons(JP_ROMAN[i]) + " "));
-    const kana = el("small", "wl-kana", w[JP_READING]); kana.lang = "ja"; rd.appendChild(kana);
-    strip.appendChild(item("Japanese", w[JP_FORM] || w[HANJA], "ja", rd, w[JP_MEANING],
-      { lang: "ja", text: w[JP_READING], forms: [w[JP_FORM], w[HANJA], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] }));
-  } else missing.push("Japanese");
-  if (w[VI_WORD]) {
-    const viItem = item("Vietnamese", w[VI_WORD], "vi", "", w[VI_MEANING], { lang: "vi", text: w[VI_WORD], forms: [w[VI_WORD]] });
-    // Vietnamese is matched by sound, so it notes whether Wiktionary writes it with the same characters
-    const vi = el("div", "vi-check");
-    viItem.appendChild(vi);
-    checkVietnamese(i, vi);
-    strip.appendChild(viItem);
-  } else missing.push("Vietnamese");
-  missing.forEach(l => strip.appendChild(item(l, "—", "", "", "Not a word in " + l, null, "wl-missing")));
-  langs.appendChild(strip);
-  langs.appendChild(voicesNote());   // about the Listen buttons, right under them
-  page.appendChild(langs);
-
-  // The word split into its characters: one column each, read left to right like the word. Each column has the
-  // character, its meaning, how it's read in every language (the same rows in every column, so a row reads across as
-  // the whole word), and a few other words built from it, with a link to all of them.
+  // One table in the languages' colours: a column each for Korean, Chinese, Japanese, and Vietnamese, running from the
+  // whole word (how it's written, how it sounds, what it means there) down through each of its characters (how that
+  // character is read in each language). The characters themselves sit in a white column on the left, with their
+  // meaning, their Tang-era sound, and a link to every word built from them.
   const chars = Array.from(w[HANJA]);
   const hangul = Array.from(w[HANGUL]);
   const n = chars.length;
-  const charSec = el("section", "page-section wc-section");
-  charSec.appendChild(el("h2", "visually-hidden", "Character breakdown"));
-  const cols = el("div", "wc-cols" + (n >= 4 ? " many" : ""));
-  cols.style.setProperty("--n", n);
+  const COLS = [["k", "Korean"], ["z", "Chinese"], ["j", "Japanese"], ["v", "Vietnamese"]];
+  const has = { k: true, z: !!w[ZH_MEANING], j: !!w[JP_MEANING], v: !!w[VI_WORD] };
+  const sec = el("section", "wa-section");
+  sec.appendChild(el("h2", "visually-hidden", "In each language, and character by character"));
+  const wa = el("div", "wa");
+  wa.style.setProperty("--rows", n);
+  const cell = (c, cls) => { const d = el("div", "wa-c wa-" + c + (has[c] ? "" : " off") + (cls ? " " + cls : "")); wa.appendChild(d); return d; };
+  const gut = cls => { const d = el("div", "wa-g" + (cls ? " " + cls : "")); wa.appendChild(d); return d; };
+
+  // header row
+  gut("wa-corner");
+  COLS.forEach(([c, name]) => cell(c, "wa-head").appendChild(el("span", "wa-lab", name)));
+
+  // the whole word in each language
+  gut("wa-corner");
+  const line = (text, play, label, small) => {
+    const r = el("div", "wa-read");
+    r.append(document.createTextNode(text));
+    if (small) { const s = el("small", "", small.text); if (small.lang) s.lang = small.lang; r.appendChild(s); }
+    if (play) r.appendChild(playButton(label, text, play));
+    return r;
+  };
+  const top = (c, written, lang, reads, mean) => {
+    const d = cell(c, "wa-word");
+    if (!has[c]) { d.appendChild(el("p", "wa-none", "Not a word in " + COLS.find(x => x[0] === c)[1])); return d; }
+    const wr = el("div", "wa-written", written); if (lang) wr.lang = lang;
+    d.appendChild(wr);
+    reads.forEach(r => d.appendChild(r));
+    if (mean) { const m = typeof mean === "string" ? el("p", "wa-mean", mean) : mean; m.title = m.textContent; d.appendChild(m); }
+    return d;
+  };
+  top("k", w[HANGUL], "ko", [line(KO_ROMAN[i], { lang: "ko", text: w[HANGUL], forms: [w[HANGUL]] }, "Korean")],
+    withMark(el("p", "wa-mean", meaning.short), meaning));
+  const simp = w[ZH_SIMPLIFIED] && w[ZH_SIMPLIFIED] !== zhForm(w) ? w[ZH_SIMPLIFIED] : "";
+  top("z", simp || zhForm(w), simp ? "zh-Hans" : "zh-Hant", has.z ? [
+      line(pinyinMarks(w[ZH_PINYIN]), { lang: "zh", text: w[ZH_SIMPLIFIED] || zhForm(w), forms: [w[ZH_SIMPLIFIED], zhForm(w), pinyinMarks(w[ZH_PINYIN]).replace(/ /g, "")] }, "Mandarin", { text: "Mandarin" }),
+      ...(w[YUE] ? [line(w[YUE], { lang: "yue", text: zhForm(w), forms: [zhForm(w), w[YUE].replace(/ /g, "")] }, "Cantonese",
+        { text: "Cantonese" + (simp ? " · " + zhForm(w) : ""), lang: simp ? "zh-Hant" : "" })] : [])] : [], w[ZH_MEANING]);
+  top("j", w[JP_FORM] || w[HANJA], "ja", has.j ? [line(romajiWithMacrons(JP_ROMAN[i]),
+      { lang: "ja", text: w[JP_READING], forms: [w[JP_FORM], w[HANJA], w[JP_READING], romajiWithMacrons(JP_ROMAN[i])] }, "Japanese", { text: w[JP_READING], lang: "ja" })] : [], w[JP_MEANING]);
+  const viTop = top("v", w[VI_WORD], "vi", has.v ? [line("", { lang: "vi", text: w[VI_WORD], forms: [w[VI_WORD]] }, "Vietnamese")] : [], w[VI_MEANING]);
+  if (has.v) {
+    // Vietnamese is matched by sound, so it notes whether Wiktionary writes it with the same characters
+    const vi = el("div", "vi-check");
+    viTop.appendChild(vi);
+    checkVietnamese(i, vi);
+  }
+
+  // one row per character
   const why = [];
   chars.forEach((c, k) => {
-    const col = el("article", "wc-col");
-    const big = el("span", "wc-big", c); big.lang = "ko";
-    col.appendChild(big);
-    col.appendChild(el("p", "wc-mean", CHAR_MEANING[c] || ""));
-    const forms = [];
-    if (w[ZH_SIMPLIFIED] && Array.from(w[ZH_SIMPLIFIED]).length === n && Array.from(w[ZH_SIMPLIFIED])[k] !== c) forms.push("simplified " + Array.from(w[ZH_SIMPLIFIED])[k]);
-    if (w[JP_FORM] && Array.from(w[JP_FORM]).length === n && Array.from(w[JP_FORM])[k] !== c) forms.push("Japanese " + Array.from(w[JP_FORM])[k]);
-    if (w[ZH_FORM] && Array.from(w[ZH_FORM]).length === n && Array.from(w[ZH_FORM])[k] !== c) forms.unshift("Chinese " + Array.from(w[ZH_FORM])[k]);
-    // always there (empty if none), so the reading rows line up across the columns
-    col.appendChild(el("p", "wc-forms", forms.join(" · ")));
+    const last = k === n - 1 ? " wa-last" : "";
+    const g = gut("wa-char" + last);
+    const big = el("span", "wa-big", c); big.lang = "ko";
+    g.appendChild(big);
+    if (CHAR_MEANING[c]) g.appendChild(el("p", "wa-cmean", CHAR_MEANING[c]));
+    const tang = el("p", "wa-tang");
+    const term = el("span", "tang-term", "Tang era");
+    term.tabIndex = 0;
+    const tip = el("span", "tang-tip", TANG_TIP);
+    tip.id = "tang-tip-" + k;
+    tip.setAttribute("role", "tooltip");
+    term.setAttribute("aria-describedby", tip.id);
+    term.appendChild(tip);
+    tang.append(term, document.createTextNode(" "), el("b", "", TANG[c] || "—"));
+    g.appendChild(tang);
+    const others = wordsWithChar(c).filter(j => j !== i);
+    if (others.length) {
+      const all = el("button", "wa-all", "in " + (others.length + 1).toLocaleString() + " words →");
+      all.type = "button";
+      all.title = "Every Korean word with " + c;
+      all.addEventListener("click", () => openCharDrawer(c, i));
+      g.appendChild(all);
+    }
 
+    const same = s => s && Array.from(s).length === n;
     const zh = syllableAt(w[ZH_PINYIN], k, n).toLowerCase();
     const yue = syllableAt(w[YUE], k, n);
     const vi = syllableAt(w[VI_WORD], k, n);
-    const reads = [["Tang era", TANG[c] || ""], ["Korean", hangul.length === n ? hangul[k] + " " + romanizeKorean(hangul[k]) : ""],
-      ["Mandarin", zh ? pinyinMarks(zh) : ""], ["Cantonese", yue || ""], ["Vietnamese", vi || ""]];
-    const tbl = el("dl", "wc-reads");
-    reads.forEach(([lang, r]) => {
-      let dt;
-      if (lang === "Tang era") {
-        // "Tang era" explains itself on hover (or on focus or tap)
-        dt = el("dt", "tang");
-        const term = el("span", "tang-term", "Tang era");
-        term.tabIndex = 0;
-        const tip = el("span", "tang-tip", TANG_TIP);
-        tip.id = "tang-tip-" + k;
-        tip.setAttribute("role", "tooltip");
-        term.setAttribute("aria-describedby", tip.id);
-        term.appendChild(tip);
-        dt.appendChild(term);
-      } else dt = inked("dt", "", lang);
-      tbl.append(dt, el("dd", lang === "Tang era" ? "tang" : "", r || "—"));
-    });
-    col.appendChild(tbl);
-
+    const rd = (c2, text, sub, lang) => {
+      const d = cell(c2, "wa-row" + last);
+      const t = el("div", "wa-r", text || "—"); if (lang) t.lang = lang;
+      d.appendChild(t);
+      if (sub) d.appendChild(el("div", "wa-sub", sub));
+    };
+    rd("k", hangul.length === n ? hangul[k] + " " + romanizeKorean(hangul[k]) : "");
+    const zform = same(w[ZH_SIMPLIFIED]) && Array.from(w[ZH_SIMPLIFIED])[k] !== c ? Array.from(w[ZH_SIMPLIFIED])[k] : "";
+    rd("z", [zh && pinyinMarks(zh), yue].filter(Boolean).join(" · "), zform ? "written " + zform : "");
+    // per-character Japanese readings aren't in the data yet; the Japanese column shows how Japan writes the character
+    const jform = same(w[JP_FORM]) ? Array.from(w[JP_FORM])[k] : "";
+    rd("j", has.j ? (jform || c) : "", has.j && jform && jform !== c ? "a simpler form" : "", "ja");
+    rd("v", vi);
     const notes = soundNotes(c, hangul.length === n ? hangul[k] : "", vi, yue, zh);
     if (notes.length) why.push([c, notes]);
-
-    // A few other words with this character, and a link to all of them
-    const others = wordsWithChar(c).filter(j => j !== i);
-    const picks = others.slice().sort(commonFirst).slice(0, n >= 4 ? 2 : 3);
-    if (picks.length) {
-      const list = el("div", "chip-list wc-chips");
-      picks.forEach(j => list.appendChild(wordButton(j, c)));
-      col.appendChild(list);
-    }
-    if (others.length) {
-      const all = el("button", "wc-all", "All " + others.length.toLocaleString() + " word" + (others.length === 1 ? "" : "s") + " with " + c + " →");
-      all.type = "button";
-      all.addEventListener("click", () => openCharDrawer(c, i));
-      col.appendChild(all);
-    } else col.appendChild(el("p", "wc-none", "No other words with " + c + " on this site"));
-    cols.appendChild(col);
   });
-  charSec.appendChild(cols);
-  // Why the sounds differ, for every character at once, folded away
+  sec.appendChild(wa);
+  // Under the table, two cards lined up with the coloured columns: why the sounds differ, and where the sounds and
+  // facts come from (with Wiktionary links for the word and each character)
+  const notes = el("div", "wa-notes");
   if (why.length) {
-    const d = el("details", "wc-why");
-    d.appendChild(el("summary", "", "Why these sounds differ"));
-    why.forEach(([c, notes]) => {
-      const blk = el("div", "wc-why-char");
-      const h = el("span", "wc-why-big", c); h.lang = "ko";
-      const ul = el("ul");
-      notes.forEach(t => ul.appendChild(el("li", "", t)));
-      blk.append(h, ul);
-      d.appendChild(blk);
+    const card = el("div", "wa-note-card wa-why");
+    card.appendChild(el("h3", "", "Why these sounds differ"));
+    why.forEach(([c, list]) => {
+      const row = el("div", "wa-why-row");
+      const big = el("b", "", c); big.lang = "ko";
+      row.append(big, el("span", "", list.join(" ")));
+      card.appendChild(row);
     });
-    charSec.appendChild(d);
+    notes.appendChild(card);
   }
-  page.appendChild(charSec);
-
-  // Look it up at the source
-  const foot = el("section", "page-foot");
-  const more = el("p");
-  more.appendChild(makeLink("https://en.wiktionary.org/wiki/" + encodeURIComponent(w[HANJA]), "Look up " + w[HANJA] + " on Wiktionary"));
-  foot.appendChild(more);
-  page.appendChild(foot);
+  const src = el("div", "wa-note-card wa-src");
+  src.appendChild(el("h3", "", "Listening and sources"));
+  src.appendChild(el("p", "", "The speaker buttons play a native speaker's recording from Lingua Libre or Wikimedia Commons when there is one. " +
+    "Otherwise your device reads the word aloud, which may sound robotic (Japanese is read from its kana). A grayed-out speaker means " +
+    "there's no voice for that language on this device."));
+  const links = el("p", "wa-src-links");
+  const wk = t => "https://en.wiktionary.org/wiki/" + encodeURIComponent(t);
+  links.appendChild(makeLink(wk(w[HANJA]), w[HANJA] + " on Wiktionary ↗"));
+  if (n > 1) [...new Set(chars)].forEach(c => links.appendChild(makeLink(wk(c), c + " ↗")));
+  src.appendChild(links);
+  notes.appendChild(src);
+  sec.appendChild(notes);
+  page.appendChild(sec);
 }
 
 $("back").addEventListener("click", backToGallery);
@@ -2335,7 +2354,7 @@ function animatePanel(on, done) {
     const k = Math.min(1, (now - t0) / dur), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
     const w = from + (to - from) * e;
     d.style.width = w + "px";
-    t.style.right = (w - 14) + "px";
+    t.style.right = (w - 12) + "px";   // half the button's 24px width, so it stays centred on the edge
     if (now - last > 50) { last = now; refresh(); }   // the overview and the list follow along
     if (k < 1) panelAnim.raf = requestAnimationFrame(step); else finish();
   };
@@ -2361,6 +2380,7 @@ function renderRail() {
   if (!rail || rail.hidden) return;
   rail.innerHTML = "";
   const i = state.selected;
+  rail.classList.toggle("is-intro", i < 0);   // with no word selected, the folded strip is black like the intro
   if (i >= 0) {
     const w = WORDS[i];
     rail.appendChild(withMark(el("span", "rail-en", meaningOf(i).short), meaningOf(i)));
