@@ -58,7 +58,7 @@ const canvas = $("map");
 const ctx = canvas.getContext("2d");
 
 const state = {
-  view: "map",       // "map" (the summary of every word, shown first) or "list"
+  view: "list",      // "list" (the word cards, shown first) or "map" (the summary of every word)
   group: null,       // null = every word (no language buttons on), otherwise a category ("zjv", "zj", ...)
   query: "",
   matches: null,     // array of word indexes matching the search, best first; null = no search
@@ -221,6 +221,7 @@ function setView(view) {
   document.querySelectorAll("[data-view]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
   $("map-wrap").hidden = view !== "map";
   $("list-wrap").hidden = view !== "list";
+  if (view !== "list") $("az").hidden = true;
   refresh();
 }
 
@@ -857,6 +858,103 @@ function renderList() {
   $("list").innerHTML = "";
   appendListChunk();
   $("list-wrap").scrollTop = 0;
+  renderAz();
+}
+
+// ---------- The jump bar: a floating pill at the bottom of the list ----------
+// The letters of the sort order's alphabet that have words in the list, in that language's colour.
+// Clicking one scrolls to its heading; the letter being read is highlighted as the list scrolls.
+const AZ_LETTERS = {
+  en: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""),
+  ko: "ㄱㄲㄴㄷㄹㅁㅂㅅㅆㅇㅈㅊㅋㅌㅍㅎ".split(""),
+  zh: "ABCDEFGHJKLMNOPQRSTWXYZ".split(""),
+  ja: "あかさたなはまやらわ".split(""),
+  vi: ["A", "Ă", "Â", "B", "C", "D", "Đ", "E", "Ê", "G", "H", "I", "K", "L", "M", "N", "O", "Ô", "Ơ", "P", "Q", "R", "S", "T", "U", "Ư", "V", "X", "Y"]
+};
+let azCurrent = null;
+function renderAz() {
+  const nav = $("az");
+  nav.innerHTML = "";
+  azCurrent = null;
+  const letters = AZ_LETTERS[state.sort];
+  if (!listHeads || !letters || state.view !== "list") { nav.hidden = true; return; }
+  nav.hidden = false;
+  nav.className = "az-" + state.sort;
+  const add = (h, text, cls) => {
+    const b = el("button", cls, text);
+    b.type = "button";
+    b.dataset.head = h;
+    const n = listHeads.get(h) || 0;
+    b.title = n.toLocaleString() + (n === 1 ? " word" : " words");
+    if (state.sort === "ko") b.lang = "ko"; else if (state.sort === "ja") b.lang = "ja";
+    b.addEventListener("click", () => { if (state.selected >= 0) deselect(); jumpToHead(h); });   // jumping clears the selected word
+    nav.appendChild(b);
+  };
+  // only the letters that have words in the list right now
+  letters.filter(l => listHeads.get(l)).forEach(l => add(l, l, "az-l"));
+  updateAz();
+}
+function jumpToHead(h) {
+  const pos = listItems.findIndex(i => sortHead(i) === h);
+  if (pos < 0) return;
+  while (listShown <= pos) appendListChunk();
+  const d = Array.from(document.querySelectorAll("#list .list-divider")).find(x => x.dataset.head === h);
+  if (!d) return;
+  const wrap = $("list-wrap");
+  const first = d === document.querySelector("#list .list-divider");
+  if (wrap.scrollHeight > wrap.clientHeight + 1 && getComputedStyle(wrap).overflowY !== "visible") {
+    // the list's own top padding sits above the first heading
+    const to = () => first ? 0 : wrap.scrollTop + d.getBoundingClientRect().top - wrap.getBoundingClientRect().top - 12;
+    azScroll(wrap.scrollTop, to, y => { wrap.scrollTop = y; }, h);
+  } else {
+    // phones: the page scrolls, under the top bar that stays at the top
+    const bar = document.querySelector(".topbar"), barH = bar && getComputedStyle(bar).position === "sticky" ? bar.offsetHeight : 0;
+    azScroll(window.scrollY, () => window.scrollY + d.getBoundingClientRect().top - barH - 8, y => window.scrollTo(0, y), h);
+  }
+}
+// The jump glides: a short eased scroll. A far jump first skips most of the way, so the glide covers at most a few
+// screens and always takes about half a second. While it runs, the pill keeps the chosen letter highlighted. The
+// target is measured again every frame, since cards drawn on the way can turn out shorter or taller than estimated.
+let azAnim = 0, azGliding = false;
+const AZ_REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)");
+function azScroll(from, target, set, h) {
+  cancelAnimationFrame(azAnim);
+  setAzCurrent(h);
+  const to = target();
+  if (AZ_REDUCED.matches || Math.abs(to - from) < 2) { set(to); set(target()); azGliding = false; return; }
+  const MAX = 3200;
+  if (Math.abs(to - from) > MAX) { from = to - Math.sign(to - from) * MAX; set(from); }
+  const dur = 520, t0 = performance.now(), ease = t => 1 - Math.pow(1 - t, 3);   // fast start, soft landing
+  azGliding = true;
+  const step = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    set(from + (target() - from) * ease(t));
+    if (t < 1) azAnim = requestAnimationFrame(step);
+    else { azGliding = false; setAzCurrent(h); }
+  };
+  azAnim = requestAnimationFrame(step);
+}
+// a wheel or touch during a glide stops it where it is
+["wheel", "touchstart"].forEach(ev => window.addEventListener(ev, () => { if (azGliding) { cancelAnimationFrame(azAnim); azGliding = false; } }, { passive: true }));
+function setAzCurrent(h) {
+  if (h === azCurrent) return;
+  azCurrent = h;
+  $("az").querySelectorAll("button").forEach(b => b.classList.toggle("cur", b.dataset.head === h));
+}
+// the heading nearest the top of the list is the current letter
+let azFrame = 0;
+function updateAz() {
+  cancelAnimationFrame(azFrame);
+  azFrame = requestAnimationFrame(() => {
+    if ($("az").hidden || azGliding) return;
+    const bar = document.querySelector(".topbar"), barH = bar && getComputedStyle(bar).position === "sticky" ? bar.offsetHeight : 0;
+    const line = Math.max($("list-wrap").getBoundingClientRect().top, barH) + 60;
+    let cur = null;
+    for (const d of document.querySelectorAll("#list .list-divider")) {
+      if (d.getBoundingClientRect().top <= line) cur = d.dataset.head; else break;
+    }
+    setAzCurrent(cur || (document.querySelector("#list .list-divider") || {}).dataset?.head || null);
+  });
 }
 
 function appendListChunk() {
@@ -912,9 +1010,11 @@ function card(i) {
 $("list-wrap").addEventListener("scroll", () => {
   const el = $("list-wrap");
   if (listShown < listItems.length && el.scrollTop + el.clientHeight > el.scrollHeight - 400) appendListChunk();
+  updateAz();
 });
 // On phones the list scrolls with the page, so more words load as the page nears its end
 window.addEventListener("scroll", () => {
+  if (state.view === "list") updateAz();
   if (state.view !== "list" || listShown >= listItems.length) return;
   const end = $("list-end").getBoundingClientRect().top;
   if (end < window.innerHeight + 400) appendListChunk();
@@ -1743,7 +1843,7 @@ function resetGallery() {
   state.selected = -1;
   document.querySelectorAll(".card[aria-pressed='true']").forEach(c => c.setAttribute("aria-pressed", "false"));
   $("detail").classList.remove("has-word");
-  setView("map");   // also redraws the summary and the intro
+  setView("list");   // back to the landing view; also redraws the list and the intro
   $("list-wrap").scrollTop = 0;
   $("detail").scrollTop = 0;
   window.scrollTo(0, 0);
@@ -2287,7 +2387,8 @@ window.addEventListener("popstate", route);
 
 renderGroupButtons();
 renderIntro();
-refresh();
+// the list is the landing view; it is drawn at the end of this file, once the sort orders are set up
+if (state.view === "map") refresh(); else updateStatus();
 if (wordFromHash() >= 0 || location.hash === "#about") route();
 
 // ---------- No orphans ----------
@@ -2499,6 +2600,7 @@ const sortHead = i => { const o = SORTS[state.sort]; return o.has && !o.has(i) ?
 function sortDivider(h) {
   const o = SORTS[state.sort], n = listHeads.get(h) || 0;
   const d = el("div", "list-divider" + (h === "\u0000not" ? " not" : ""));
+  d.dataset.head = h;
   d.setAttribute("role", "heading");
   d.setAttribute("aria-level", "3");
   if (h === "\u0000not") d.append(document.createTextNode(o.notLabel || "Not a word in " + o.name), el("small", "", n.toLocaleString() + (n === 1 ? " word" : " words") + ", in 가나다 order"));

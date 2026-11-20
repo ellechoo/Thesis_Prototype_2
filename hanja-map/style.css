@@ -1583,3 +1583,26 @@ body.drawer-open { overflow: hidden; }
 
 /* The folded panel strip, while the intro would show: black, like the intro panel */
 #rail.is-intro, #rail.is-intro:hover { background: #000; }
+
+/* The list's jump bar: a floating pill in the sort language's colour, with its alphabet */
+#az { --pill: #000; position: absolute; left: 50%; bottom: 18px; z-index: 5; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; max-width: calc(100% - 32px); padding: 6px 10px; overflow-x: auto; scrollbar-width: none;
+  border-radius: 999px; background: var(--pill); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); white-space: nowrap; }
+#az::-webkit-scrollbar { display: none; }
+#az[hidden] { display: none; }
+#az.az-zh { --pill: var(--zh); } #az.az-ja { --pill: var(--ja); } #az.az-vi { --pill: var(--vi); }
+#az button { flex: none; min-width: 22px; height: 24px; padding: 0 4px; border: 0; border-radius: 999px; background: none;
+  display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 500; line-height: 1; color: #fff; cursor: pointer; }
+#az.az-ko button.az-l { min-width: 24px; font-size: 14px; }
+#az.az-ja button.az-l { font-size: 13.5px; }
+#az button:hover { background: rgba(255, 255, 255, 0.18); }
+#az button.cur, #az button.cur:hover { background: #fff; color: var(--pill); }
+#az button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+#list-wrap { padding-bottom: 64px; }   /* room for the pill under the last cards */
+/* phones: the page scrolls, so the pill stays fixed to the bottom of the screen */
+@media (max-width: 640px) {
+  #az { position: fixed; bottom: 14px; max-width: calc(100vw - 24px); }
+}
+
+/* Cards off screen skip layout and painting, so a long jump through the alphabet stays quick */
+#list .card { content-visibility: auto; contain-intrinsic-size: auto 100px; }

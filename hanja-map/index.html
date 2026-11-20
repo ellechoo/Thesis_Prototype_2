@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Sans+KR:wght@400;500;600&family=Noto+Sans+JP:wght@400;500&family=Noto+Sans+TC:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap">
-  <link rel="stylesheet" href="style.css?v=20261119y">
+  <link rel="stylesheet" href="style.css?v=20261120e">
 </head>
 <body>
 
@@ -31,11 +31,11 @@
         </button>
       </div>
       <div class="view-switch" role="group" aria-label="View">
-        <button type="button" data-view="map" aria-pressed="true" aria-label="Overview" title="Overview">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="5" r="1.7"/><circle cx="9.5" cy="5" r="1.7"/><circle cx="4.5" cy="12" r="1.7"/><circle cx="9.5" cy="12" r="1.7"/><circle cx="14.5" cy="12" r="1.7"/><circle cx="4.5" cy="19" r="1.7"/><circle cx="9.5" cy="19" r="1.7"/><circle cx="14.5" cy="19" r="1.7"/><circle cx="19.5" cy="19" r="1.7"/></svg>
-        </button>
-        <button type="button" data-view="list" aria-pressed="false" aria-label="List" title="List">
+        <button type="button" data-view="list" aria-pressed="true" aria-label="List" title="List">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5"/><rect x="13.5" y="4" width="6.5" height="6.5"/><rect x="4" y="13.5" width="6.5" height="6.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5"/></svg>
+        </button>
+        <button type="button" data-view="map" aria-pressed="false" aria-label="Overview" title="Overview">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="5" r="1.7"/><circle cx="9.5" cy="5" r="1.7"/><circle cx="4.5" cy="12" r="1.7"/><circle cx="9.5" cy="12" r="1.7"/><circle cx="14.5" cy="12" r="1.7"/><circle cx="4.5" cy="19" r="1.7"/><circle cx="9.5" cy="19" r="1.7"/><circle cx="14.5" cy="19" r="1.7"/><circle cx="19.5" cy="19" r="1.7"/></svg>
         </button>
       </div>
     </header>
@@ -55,7 +55,7 @@
           <div id="sort-pop" class="sort-pop" role="listbox" aria-labelledby="sort-label" hidden></div>
         </div>
       </div>
-      <div id="map-wrap">
+      <div id="map-wrap" hidden>
         <!-- Arrange by (Languages / Number of characters / Learner level): hidden for now; script.js still supports it if it comes back
         <div class="map-bar">
           <label class="map-bar-label" for="arrange">Arrange by</label>
@@ -71,10 +71,11 @@
         <div id="map-blocks" hidden></div>
         <button type="button" id="map-back" hidden>← All groups</button>
       </div>
-      <div id="list-wrap" hidden>
+      <div id="list-wrap">
         <div id="list"></div>
         <p id="list-end"></p>
       </div>
+      <nav id="az" aria-label="Jump to a letter" hidden></nav>
     </section>
     </div>
 
@@ -259,11 +260,11 @@
       </div>
     </main>
   </div>
-  <script src="words.js?v=20261119y"></script>
-  <script src="characters.js?v=20261119y"></script>
-  <script src="romanize.js?v=20261119y"></script>
-  <script src="recordings.js?v=20261119y"></script>
-  <script src="speech.js?v=20261119y"></script>
-  <script src="script.js?v=20261119y"></script>
+  <script src="words.js?v=20261120e"></script>
+  <script src="characters.js?v=20261120e"></script>
+  <script src="romanize.js?v=20261120e"></script>
+  <script src="recordings.js?v=20261120e"></script>
+  <script src="speech.js?v=20261120e"></script>
+  <script src="script.js?v=20261120e"></script>
 </body>
 </html>
